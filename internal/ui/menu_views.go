@@ -69,13 +69,18 @@ func (m Model) getWorkerInputContent() []string {
 	}
 	
 	inputContent := m.OrchestratorAddr + cursor
-	if m.OrchestratorAddr == "" && !m.InputMode {
-		// Get actual local IP for placeholder
+	if m.OrchestratorAddr == "localhost:50051" || (m.OrchestratorAddr == "" && !m.InputMode) {
+		// Get actual local IP for placeholder instead of localhost
 		localIP := getLocalIP()
 		placeholder := fmt.Sprintf("%s:50051", localIP)
-		inputContent = lipgloss.NewStyle().
-			Faint(true).
-			Render(placeholder)
+		if m.OrchestratorAddr == "" && !m.InputMode {
+			inputContent = lipgloss.NewStyle().
+				Faint(true).
+				Render(placeholder)
+		} else {
+			// Replace localhost with actual IP for display
+			inputContent = strings.Replace(inputContent, "localhost", localIP, 1)
+		}
 	}
 	
 	inputBox := lipgloss.NewStyle().

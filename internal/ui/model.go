@@ -22,7 +22,7 @@ func NewModel() Model {
 		// Phase 02 defaults - start in mode selection
 		Mode:             ModeSelection,
 		SelectedOption:   0,
-		OrchestratorAddr: "localhost:50051", // Default address
+		OrchestratorAddr: "", // Will be filled with local IP when needed
 		InputMode:        false,
 	}
 }
@@ -101,10 +101,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// On error, display N/A and schedule next tick
 			m.CPU = "N/A"
 			m.Mem = "N/A"
-			return m, m.tickCmd()
+		} else {
+			m.CPU = fmt.Sprintf("%.2f%%", msg.CPU)
+			m.Mem = fmt.Sprintf("%.2f%%", msg.Mem)
 		}
-		m.CPU = fmt.Sprintf("%.2f%%", msg.CPU)
-		m.Mem = fmt.Sprintf("%.2f%%", msg.Mem)
+		
+		// Continue ticking for all modes (orchestrator mode needs regular updates to show node changes)
 		return m, m.tickCmd()
 	}
 	return m, nil

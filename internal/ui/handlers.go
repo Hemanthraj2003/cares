@@ -76,6 +76,16 @@ func (m Model) handleOrchestratorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if len(nodes) > maxVisibleNodes && m.NodeScrollOffset < len(nodes)-maxVisibleNodes {
 			m.NodeScrollOffset++
 		}
+	case "esc":
+		// Return to mode selection menu
+		// Cleanup orchestrator mode
+		if m.GrpcServer != nil {
+			// TODO: Properly stop the gRPC server in Phase 03
+		}
+		m.Mode = ModeSelection
+		m.GrpcServer = nil
+		m.NodeRegistry = nil
+		m.NodeScrollOffset = 0
 	}
 	
 	return m, nil
@@ -83,7 +93,17 @@ func (m Model) handleOrchestratorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleWorkerKeys processes key input in worker mode (same as Phase 01)
 func (m Model) handleWorkerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// Worker mode behaves like Phase 01 - no additional keys needed
+	switch msg.String() {
+	case "esc":
+		// Disconnect from orchestrator and return to menu
+		if m.GrpcClient != nil {
+			m.GrpcClient.Disconnect()
+		}
+		m.Mode = ModeSelection
+		m.GrpcClient = nil
+		m.OrchestratorAddr = ""
+		m.InputMode = false
+	}
 	return m, nil
 }
 
@@ -102,7 +122,8 @@ func (m Model) startOrchestratorMode() (tea.Model, tea.Cmd) {
 		}
 	}()
 	
-	return m, nil
+	// Start the tick command to refresh UI regularly (this will show node updates)
+	return m, m.tickCmd()
 }
 
 // startWorkerMode initializes the gRPC client and switches to worker mode

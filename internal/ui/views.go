@@ -36,13 +36,13 @@ func (m Model) View() string {
 	var helpText string
 	switch m.Mode {
 	case ModeSelection:
-		helpText = "Use ↑↓ arrow keys | Enter to select | Ctrl+C to quit"
+		helpText = "↑↓ arrow keys | Enter to select | Ctrl+C to quit"
 	case ModeWorkerInput:
 		helpText = "Type address | Enter to connect | Esc to go back | Ctrl+C to quit"
 	case ModeOrchestrator:
 		helpText = "↑↓ scroll nodes | Esc return to menu | Ctrl+C to quit"
 	case ModeWorker:
-		helpText = "Esc disconnect | Ctrl+C to quit"
+		helpText = "Esc disconnect and return to menu | Ctrl+C to quit"
 	default:
 		helpText = "Ctrl+C to quit"
 	}

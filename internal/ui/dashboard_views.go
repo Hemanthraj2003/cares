@@ -55,8 +55,15 @@ func (m Model) getOrchestratorContent() []string {
 			if len(nodeID) > 8 {
 				nodeID = nodeID[:8]
 			}
-			nodeContent.WriteString(fmt.Sprintf("%-8s │ %.1f%% │ %.1f%% │ ONLINE\n", 
-				nodeID, node.CPUUsage, node.MemoryUsage))
+			// Show actual node status instead of always "ONLINE"
+			status := string(node.Status)
+			if status == "Active" {
+				status = "ONLINE"
+			} else if status == "Disconnected" {
+				status = "OFFLINE"
+			}
+			nodeContent.WriteString(fmt.Sprintf("%-8s │ %.1f%% │ %.1f%% │ %s\n", 
+				nodeID, node.CPUUsage, node.MemoryUsage, status))
 		}
 		
 		if len(nodes) > maxNodes {
@@ -95,12 +102,6 @@ func (m Model) getOrchestratorContent() []string {
 		Height(5).
 		Render(lipgloss.NewStyle().Bold(true).Render("Activity Logs") + "\n\n" + logContent.String())
 	
-	// Instructions
-	instructions := lipgloss.NewStyle().
-		Faint(true).
-		Align(lipgloss.Center).
-		Render("UP/DOWN scroll nodes | ESC return to menu | CTRL+C exit")
-	
 	// Combine everything in grid layout
 	layout := lipgloss.JoinVertical(
 		lipgloss.Left,
@@ -109,8 +110,6 @@ func (m Model) getOrchestratorContent() []string {
 		topRow,
 		"",
 		logsCard,
-		"",
-		instructions,
 	)
 	
 	return strings.Split(layout, "\n")
@@ -179,12 +178,6 @@ func (m Model) getWorkerContent() []string {
 		Height(6).
 		Render(lipgloss.NewStyle().Bold(true).Render("Activity Logs") + "\n\n" + logContent.String())
 	
-	// Instructions
-	instructions := lipgloss.NewStyle().
-		Faint(true).
-		Align(lipgloss.Center).
-		Render("ESC disconnect and return to menu | CTRL+C exit")
-	
 	// Grid layout
 	layout := lipgloss.JoinVertical(
 		lipgloss.Left,
@@ -193,8 +186,6 @@ func (m Model) getWorkerContent() []string {
 		topRow,
 		"",
 		logsCard,
-		"",
-		instructions,
 	)
 	
 	return strings.Split(layout, "\n")
