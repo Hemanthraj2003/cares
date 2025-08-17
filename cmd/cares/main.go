@@ -1,3 +1,9 @@
+// Package main contains the CARES Phase 01 CLI entrypoint.
+//
+// This small binary bootstraps the terminal UI (internal/ui) and exits with a
+// non-zero status code if the UI returns an error. Keep this file minimal — it
+// delegates real work to internal packages so it remains easy to test and to
+// replace in deployments.
 package main
 
 import (

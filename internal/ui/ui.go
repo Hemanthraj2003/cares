@@ -1,9 +1,69 @@
-// Package ui provides a minimal Bubble Tea TUI used by the Phase 01 MVP.
+// Package ui provides a terminal user interface for the CARES Phase 01 MVP.
 //
-// This package offers a lightweight scaffold: a Model with placeholders for
-// CPU and Memory values, and a Start() helper that boots the Bubble Tea program.
-// The UI is intentionally minimal so it can be integrated quickly and extended
-// later to display live metrics.
+// overview:
+//
+// This package implements a small, dependency-light Bubble Tea (github.com/charmbracelet/bubbletea)
+// TUI responsible for displaying sampled system metrics (CPU and memory) in a
+// centered bordered box and presenting a modal confirmation dialog when the
+// user requests to quit (Ctrl+C or 'q'). It is intentionally minimal so it can
+// be embedded into larger applications and extended without heavy refactors.
+//
+// Public API:
+//   - NewModel(), NewModelWithInterval(time.Duration) -> model
+//     Create an initialized model with default or custom sampling intervals.
+//   - Start() error
+//     Bootstraps and runs the TUI program using the alternate screen buffer. It
+//     returns any error from the Bubble Tea program (propagated to callers).
+//
+// Behavior and responsibilities:
+//   - Polls metrics via the internal/metrics package by scheduling a recurring
+//     tick (m.interval). Metric values are rendered inside the centered box.
+//   - Respects terminal resize events and re-centers the UI accordingly.
+//   - Provides a lightweight quit-confirmation flow: when the user presses
+//     Ctrl+C or 'q' the UI overlays a modal asking for Y/N confirmation; 'Y'
+//     quits the program, 'N' or Escape dismisses the modal.
+//
+// Concurrency and signals:
+//   - Start() installs a signal handler (SIGINT, SIGTERM) and uses a context to
+//     cancel the Bubble Tea program so shutdown is graceful. Metric sampling runs
+//     on Bubble Tea's command goroutines and sends typed messages to the Update
+//     method; the model itself is not concurrently mutated outside Bubble Tea's
+//     single-threaded update loop.
+//
+// Error handling and robustness:
+//   - When metric sampling fails, the UI displays "N/A" for the corresponding
+//     value and continues scheduling further samples. Any unexpected errors from
+//     the Bubble Tea runtime are returned from Start() so callers can act on
+//     them (logging, restart, etc.). The UI avoids panics and tries to preserve
+//     terminal state by using Bubble Tea's alternate screen behavior.
+//
+// Styling and portability:
+//   - The package uses only portable Unicode box-drawing characters and avoids
+//     terminal-specific libraries except Bubble Tea. When rendering the modal
+//     an ANSI inverse-video sequence is used for contrast; callers should run in
+//     terminals with basic ANSI support for correct appearance.
+//
+// Configuration and constants:
+//   - desiredBoxW and desiredBoxH define the target size for the centered box.
+//     The TUI shows a helpful message when the terminal is smaller than these
+//     dimensions. These constants are intentionally conservative and can be
+//     adjusted for different deployments.
+//
+// Testing and maintenance notes:
+//   - View and renderBox produce plain strings and are straightforward to unit
+//     test by simulating window sizes and model states. Keep renderBox logic
+//     rune-aware (use go-runewidth) to handle wide characters correctly.
+//   - Keep UI logic (presentation) and metrics sampling (data) separated to
+//     simplify unit tests and allow headless testing of the sampling logic.
+//
+// Example (simplified):
+//
+//	if err := ui.Start(); err != nil {
+//	    log.Fatalf("ui failed: %v", err)
+//	}
+//
+// This file is intended to be production-ready for a small terminal agent and
+// to serve as a clear, maintainable starting point for future Phase 02 work.
 package ui
 
 import (

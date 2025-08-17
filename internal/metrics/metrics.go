@@ -1,6 +1,7 @@
-// Package metrics provides utilities for collecting system resource usage statistics
-// such as CPU and memory usage. These metrics are used by the CARES orchestrator
-// to make scheduling and resource allocation decisions.
+// Package metrics provides utilities for collecting system resource usage
+// statistics such as CPU and memory utilization. The functions in this package
+// are safe to call from other packages and return values in percentage units
+// (0.0 - 100.0).
 package metrics
 
 import (
