@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package cluster;
+
+option go_package = "cares/internal/cluster";
+
+// ClusterService defines the gRPC service for cluster communication
+service ClusterService {
+  // JoinCluster allows a worker node to join the cluster
+  rpc JoinCluster(NodeInfo) returns (Acknowledgement);
+  
+  // Heartbeat establishes a bidirectional stream for metrics and commands
+  rpc Heartbeat(stream NodeMetrics) returns (stream OrchestratorCommand);
+}
+
+// NodeInfo contains information about a node joining the cluster
+message NodeInfo {
+  string node_id = 1;
+  string address = 2;
+  string hostname = 3;
+  int64 timestamp = 4;
+}
+
+// NodeMetrics contains real-time resource usage data from a worker node
+message NodeMetrics {
+  string node_id = 1;
+  double cpu_usage = 2;
+  double memory_usage = 3;
+  int64 timestamp = 4;
+  string status = 5;
+}
+
+// Acknowledgement confirms successful operations
+message Acknowledgement {
+  bool success = 1;
+  string message = 2;
+  string cluster_id = 3;
+}
+
+// OrchestratorCommand represents commands sent from orchestrator to workers
+message OrchestratorCommand {
+  string command_type = 1;
+  string payload = 2;
+  int64 timestamp = 3;
+}

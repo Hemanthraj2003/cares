@@ -1,0 +1,68 @@
+package ui
+
+import (
+	"time"
+
+	"cares/internal/cluster"
+	"cares/internal/registry"
+)
+
+// AppMode represents the current mode of the application
+type AppMode int
+
+const (
+	// ModeSelection - Initial screen where user chooses orchestrator or worker
+	ModeSelection AppMode = iota
+	// ModeOrchestrator - Running as cluster orchestrator (shows node dashboard)
+	ModeOrchestrator
+	// ModeWorker - Running as worker node (shows local metrics like Phase 01)
+	ModeWorker
+	// ModeWorkerInput - Getting orchestrator address input from user
+	ModeWorkerInput
+)
+
+// Desired box size for the centered UI. Chosen to fit most modern laptop terminals
+// while remaining reasonable on smaller screens. If the terminal is smaller than
+// this, the TUI will display a helpful message instead of the box.
+const (
+	DesiredBoxW = 160
+	DesiredBoxH = 40
+)
+
+// Model is the Bubble Tea model for the CARES Phase 02 TUI.
+// Now supports multiple modes: mode selection, orchestrator dashboard, and worker view.
+type Model struct {
+	// Phase 01 fields (worker mode)
+	CPU      string
+	Mem      string
+	interval time.Duration
+	
+	// Terminal window size
+	WinW int
+	WinH int
+	
+	// Application state
+	Mode        AppMode
+	ShowConfirm bool
+	
+	// Mode selection
+	SelectedOption int // 0 = orchestrator, 1 = worker
+	
+	// Worker mode - orchestrator address input
+	OrchestratorAddr string
+	InputMode        bool
+	
+	// Orchestrator mode - cluster state
+	GrpcServer   *cluster.Server
+	NodeRegistry *registry.NodeRegistry
+	
+	// Worker mode - connection to orchestrator
+	GrpcClient *cluster.Client
+}
+
+// MetricsMsg is sent by the sampler to the UI update loop.
+type MetricsMsg struct {
+	CPU float64
+	Mem float64
+	Err error
+}
