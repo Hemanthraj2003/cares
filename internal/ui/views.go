@@ -25,9 +25,11 @@ func (m Model) View() string {
 	case ModeWorkerInput:
 		content = m.getWorkerInputContent()
 	case ModeOrchestrator:
-		content = m.getOrchestratorContent()
+		content = m.getTwoPanelLayout()
+	case ModeOrchestratorSidebar:
+		content = m.getTwoPanelLayout()
 	case ModeWorker:
-		content = m.getWorkerContent()
+		content = m.getSimpleWorkerContent()
 	default:
 		content = []string{"Unknown mode"}
 	}
@@ -40,7 +42,9 @@ func (m Model) View() string {
 	case ModeWorkerInput:
 		helpText = "Type address | Enter to connect | Esc to go back | Ctrl+C to quit"
 	case ModeOrchestrator:
-		helpText = "↑↓ scroll nodes | Esc return to menu | Ctrl+C to quit"
+		helpText = "Esc return to menu | Ctrl+C to quit"
+	case ModeOrchestratorSidebar:
+		helpText = "Esc return to menu | Ctrl+C to quit"
 	case ModeWorker:
 		helpText = "Esc disconnect and return to menu | Ctrl+C to quit"
 	default:

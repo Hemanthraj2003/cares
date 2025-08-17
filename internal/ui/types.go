@@ -3,7 +3,9 @@ package ui
 import (
 	"time"
 
+	"cares/internal/api"
 	"cares/internal/cluster"
+	"cares/internal/functions"
 	"cares/internal/registry"
 )
 
@@ -19,6 +21,8 @@ const (
 	ModeWorker
 	// ModeWorkerInput - Getting orchestrator address input from user
 	ModeWorkerInput
+	// ModeOrchestratorSidebar - New sidebar navigation mode for orchestrator
+	ModeOrchestratorSidebar
 )
 
 // Desired box size for the centered UI. Chosen to fit most modern laptop terminals
@@ -59,6 +63,21 @@ type Model struct {
 	
 	// Worker mode - connection to orchestrator
 	GrpcClient *cluster.Client
+	
+	// Phase 3 - Function management
+	FunctionRegistry *functions.Registry
+	ApiServer        *api.Server
+	
+	// Sidebar navigation state
+	SidebarSelected  int
+	SidebarView      string // "cluster", "functions", "logs"
+	
+	// Function form state
+	ShowFunctionForm bool
+	FunctionFormName string
+	FunctionFormImage string
+	FunctionFormDesc string
+	FunctionFormField int // 0=name, 1=image, 2=desc
 }
 
 // MetricsMsg is sent by the sampler to the UI update loop.

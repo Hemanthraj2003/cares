@@ -36,17 +36,21 @@ func (m Model) getModeSelectionContent() []string {
 		opt2 = selectedStyle.Render(option2)
 	}
 	
-	// Simple centered layout - no instructions needed (they're at bottom)
-	layout := lipgloss.JoinVertical(
-		lipgloss.Center,
-		header,
-		"",
-		"",
-		opt1,
-		opt2,
-	)
+	// Create a centered layout that will work within the container
+	content := lipgloss.NewStyle().
+		Width(m.WinW - 8). // Account for container padding and borders
+		Height(m.WinH - 10). // Account for title, help, borders, padding
+		Align(lipgloss.Center, lipgloss.Center). // Both horizontal and vertical center
+		Render(lipgloss.JoinVertical(
+			lipgloss.Center,
+			header,
+			"",
+			"",
+			opt1,
+			opt2,
+		))
 	
-	return strings.Split(layout, "\n")
+	return strings.Split(content, "\n")
 }
 
 // getWorkerInputContent returns simple worker input screen
@@ -83,23 +87,34 @@ func (m Model) getWorkerInputContent() []string {
 		}
 	}
 	
+	inputWidth := m.WinW / 3
+	if inputWidth < 25 {
+		inputWidth = 25
+	} else if inputWidth > 50 {
+		inputWidth = 50
+	}
+	
 	inputBox := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder()).
 		Padding(0, 1).
-		Width(30).
+		Width(inputWidth).
 		Align(lipgloss.Center).
 		Render(inputContent)
 	
-	// Simple centered layout - help text is at bottom border
-	layout := lipgloss.JoinVertical(
-		lipgloss.Center,
-		header,
-		"",
-		"",
-		label,
-		"",
-		inputBox,
-	)
+	// Create a centered layout that will work within the container
+	content := lipgloss.NewStyle().
+		Width(m.WinW - 8). // Account for container padding and borders
+		Height(m.WinH - 10). // Account for title, help, borders, padding
+		Align(lipgloss.Center, lipgloss.Center). // Both horizontal and vertical center
+		Render(lipgloss.JoinVertical(
+			lipgloss.Center,
+			header,
+			"",
+			"",
+			label,
+			"",
+			inputBox,
+		))
 	
-	return strings.Split(layout, "\n")
+	return strings.Split(content, "\n")
 }

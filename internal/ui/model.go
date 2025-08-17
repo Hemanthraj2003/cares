@@ -24,6 +24,12 @@ func NewModel() Model {
 		SelectedOption:   0,
 		OrchestratorAddr: "", // Will be filled with local IP when needed
 		InputMode:        false,
+		
+		// Phase 03 defaults
+		SidebarSelected:  0,
+		SidebarView:      "cluster",
+		ShowFunctionForm: false,
+		FunctionFormField: 0,
 	}
 }
 
@@ -89,6 +95,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleInputKeys(msg)
 		case ModeOrchestrator:
 			return m.handleOrchestratorKeys(msg)
+		case ModeOrchestratorSidebar:
+			return m.handleOrchestratorSidebarKeys(msg)
 		case ModeWorker:
 			return m.handleWorkerKeys(msg)
 		}

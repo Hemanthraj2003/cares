@@ -4,7 +4,9 @@ import (
 	"context"
 	"log"
 
+	"cares/internal/api"
 	"cares/internal/cluster"
+	"cares/internal/functions"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -112,13 +114,27 @@ func (m Model) startOrchestratorMode() (tea.Model, tea.Cmd) {
 	// Create gRPC server
 	m.GrpcServer = cluster.NewServer()
 	m.NodeRegistry = m.GrpcServer.GetRegistry()
-	m.Mode = ModeOrchestrator
+	
+	// Create function registry and API server
+	m.FunctionRegistry = functions.NewRegistry()
+	m.ApiServer = api.NewServer(m.FunctionRegistry)
+	
+	// Switch to sidebar mode for Phase 3
+	m.Mode = ModeOrchestratorSidebar
+	m.SidebarSelected = 0  // Start with "Logs" selected
 	
 	// Start gRPC server in background goroutine
 	go func() {
 		if err := m.GrpcServer.StartServer("50051"); err != nil {
 			// TODO: In Phase 03, send error message to TUI
 			log.Printf("gRPC server error: %v", err)
+		}
+	}()
+	
+	// Start REST API server in background goroutine
+	go func() {
+		if err := m.ApiServer.StartServer("8080"); err != nil {
+			log.Printf("REST API server error: %v", err)
 		}
 	}()
 	
@@ -153,4 +169,142 @@ func (m Model) startWorkerMode() (tea.Model, tea.Cmd) {
 	
 	// Start local metrics collection (same as Phase 01)
 	return m, m.tickCmd()
+}
+
+// handleOrchestratorSidebarKeys processes key input in orchestrator sidebar mode
+func (m Model) handleOrchestratorSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle function form input if form is open
+	if m.ShowFunctionForm {
+		return m.handleFunctionFormKeys(msg)
+	}
+	
+	switch msg.String() {
+	case "up", "k":
+		if m.SidebarSelected > 0 {
+			m.SidebarSelected--
+		}
+	case "down", "j":
+		maxItems := 4 // logs, orchestrator, functions, add-function
+		if m.SidebarSelected < maxItems-1 {
+			m.SidebarSelected++
+		}
+	case "enter", " ":
+		switch m.SidebarSelected {
+		case 0: // Logs
+			// Just selection change, content will update automatically
+		case 1: // Orchestrator
+			// Just selection change, content will update automatically
+		case 2: // Functions
+			// Just selection change, content will update automatically
+		case 3: // Add Function
+			// Open function form
+			m.ShowFunctionForm = true
+			m.FunctionFormName = ""
+			m.FunctionFormImage = ""
+			m.FunctionFormDesc = ""
+			m.FunctionFormField = 0
+		}
+	case "esc":
+		// Return to mode selection menu
+		// Cleanup orchestrator mode
+		if m.GrpcServer != nil {
+			// TODO: Properly stop the servers in Phase 03+
+		}
+		m.Mode = ModeSelection
+		m.GrpcServer = nil
+		m.NodeRegistry = nil
+		m.ApiServer = nil
+		m.FunctionRegistry = nil
+		m.NodeScrollOffset = 0
+		m.SidebarSelected = 0
+		m.ShowFunctionForm = false
+	}
+	
+	return m, nil
+}
+
+// handleFunctionFormKeys processes key input in function registration form
+func (m Model) handleFunctionFormKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		// Close form
+		m.ShowFunctionForm = false
+		m.FunctionFormName = ""
+		m.FunctionFormImage = ""
+		m.FunctionFormDesc = ""
+		m.FunctionFormField = 0
+	case "tab", "down":
+		// Move to next field
+		if m.FunctionFormField < 2 {
+			m.FunctionFormField++
+		}
+	case "shift+tab", "up":
+		// Move to previous field
+		if m.FunctionFormField > 0 {
+			m.FunctionFormField--
+		}
+	case "enter":
+		// Submit form if all required fields are filled
+		if m.FunctionFormName != "" && m.FunctionFormImage != "" {
+			return m.submitFunction()
+		}
+	case "backspace":
+		// Delete character from current field
+		switch m.FunctionFormField {
+		case 0:
+			if len(m.FunctionFormName) > 0 {
+				m.FunctionFormName = m.FunctionFormName[:len(m.FunctionFormName)-1]
+			}
+		case 1:
+			if len(m.FunctionFormImage) > 0 {
+				m.FunctionFormImage = m.FunctionFormImage[:len(m.FunctionFormImage)-1]
+			}
+		case 2:
+			if len(m.FunctionFormDesc) > 0 {
+				m.FunctionFormDesc = m.FunctionFormDesc[:len(m.FunctionFormDesc)-1]
+			}
+		}
+	default:
+		// Add character to current field
+		if len(msg.String()) == 1 {
+			switch m.FunctionFormField {
+			case 0:
+				if len(m.FunctionFormName) < 50 {
+					m.FunctionFormName += msg.String()
+				}
+			case 1:
+				if len(m.FunctionFormImage) < 100 {
+					m.FunctionFormImage += msg.String()
+				}
+			case 2:
+				if len(m.FunctionFormDesc) < 200 {
+					m.FunctionFormDesc += msg.String()
+				}
+			}
+		}
+	}
+	
+	return m, nil
+}
+
+// submitFunction submits the function form to the API
+func (m Model) submitFunction() (tea.Model, tea.Cmd) {
+	// Add function directly to registry (no HTTP call needed since we're in the same process)
+	if m.FunctionRegistry != nil {
+		_, err := m.FunctionRegistry.AddFunction(m.FunctionFormName, m.FunctionFormImage, m.FunctionFormDesc)
+		if err != nil {
+			// TODO: Show error message in UI
+			log.Printf("Failed to add function: %v", err)
+		} else {
+			// Success - close form
+			m.ShowFunctionForm = false
+			m.FunctionFormName = ""
+			m.FunctionFormImage = ""
+			m.FunctionFormDesc = ""
+			m.FunctionFormField = 0
+			m.SidebarView = "functions" // Switch to functions view to see the new function
+		}
+	}
+	
+	return m, nil
 }
