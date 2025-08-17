@@ -58,8 +58,26 @@ func (m Model) handleInputKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleOrchestratorKeys processes key input in orchestrator dashboard mode
 func (m Model) handleOrchestratorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// For Phase 02, orchestrator mode just shows the dashboard
-	// Additional key handling can be added in Phase 03
+	if m.NodeRegistry == nil {
+		return m, nil
+	}
+	
+	nodes := m.NodeRegistry.GetAllNodes()
+	maxVisibleNodes := 4 // Same as in views.go
+	
+	switch msg.String() {
+	case "up", "k":
+		// Scroll up in nodes list
+		if m.NodeScrollOffset > 0 {
+			m.NodeScrollOffset--
+		}
+	case "down", "j":
+		// Scroll down in nodes list
+		if len(nodes) > maxVisibleNodes && m.NodeScrollOffset < len(nodes)-maxVisibleNodes {
+			m.NodeScrollOffset++
+		}
+	}
+	
 	return m, nil
 }
 

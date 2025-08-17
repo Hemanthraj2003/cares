@@ -53,8 +53,9 @@ type Model struct {
 	InputMode        bool
 	
 	// Orchestrator mode - cluster state
-	GrpcServer   *cluster.Server
-	NodeRegistry *registry.NodeRegistry
+	GrpcServer      *cluster.Server
+	NodeRegistry    *registry.NodeRegistry
+	NodeScrollOffset int // For scrolling through nodes list
 	
 	// Worker mode - connection to orchestrator
 	GrpcClient *cluster.Client
