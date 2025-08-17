@@ -31,6 +31,8 @@ type model struct {
 	// terminal window size
 	winW int
 	winH int
+	// confirmation modal state
+	showConfirm bool
 }
 
 // metricsMsg is sent by the sampler to the UI update loop.
@@ -44,7 +46,7 @@ type metricsMsg struct {
 // while remaining reasonable on smaller screens. If the terminal is smaller than
 // this, the TUI will display a helpful message instead of the box.
 const (
-	desiredBoxW = 140
+	desiredBoxW = 160
 	desiredBoxH = 40
 )
 
@@ -92,8 +94,21 @@ func (m model) tickCmd() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// If confirmation modal is showing, handle Y/N
+		if m.showConfirm {
+			switch msg.String() {
+			case "y", "Y":
+				return m, tea.Quit
+			case "n", "N", "esc":
+				m.showConfirm = false
+			}
+			return m, nil
+		}
+		
+		// Quit on Ctrl+C or 'q' - show confirmation modal
 		if msg.String() == "ctrl+c" || msg.String() == "q" {
-			return m, tea.Quit
+			m.showConfirm = true
+			return m, nil
 		}
 	case tea.WindowSizeMsg:
 		m.winW = msg.Width
@@ -175,20 +190,104 @@ func (m model) View() string {
 	leftPad := (m.winW - desiredBoxW) / 2
 	topPad := (m.winH - desiredBoxH) / 2
 	box := renderBox(desiredBoxW, desiredBoxH, "CARES — Phase 01", "CPU: "+m.CPU, "Memory: "+m.Mem)
-	// Build final view with vertical and horizontal padding
-	var sb strings.Builder
-	for i := 0; i < topPad; i++ {
-		sb.WriteString("\n")
+	// Build the base screen first
+	screenLines := make([]string, m.winH)
+	for i := range screenLines {
+		screenLines[i] = strings.Repeat(" ", m.winW)
 	}
-	padSpaces := strings.Repeat(" ", leftPad)
+	
+	// Place the box
 	box = strings.TrimSuffix(box, "\n")
-	for _, line := range strings.Split(box, "\n") {
-		// render even empty lines so borders are not truncated
-		sb.WriteString(padSpaces)
-		sb.WriteString(line)
+	boxLines := strings.Split(box, "\n")
+	
+	for i, line := range boxLines {
+		if topPad+i < m.winH {
+			// Add the "Quit - Ctrl+C" message on the last line (bottom border) in the bottom-left corner
+			if i == len(boxLines)-1 && !m.showConfirm {
+				quitMsg := " Quit - Ctrl+C "
+				runes := []rune(line)
+				
+				// Make sure we have enough space and maintain border structure
+				if len(runes) > len(quitMsg)+2 { // +2 for corner characters
+					// Keep the left corner character, insert message, then continue with border
+					msgRunes := []rune(quitMsg)
+					// Start after the left corner character (position 1)
+					copy(runes[1:1+len(msgRunes)], msgRunes)
+					line = string(runes)
+				}
+			}
+			
+			// Place the line with left padding
+			lineRunes := []rune(screenLines[topPad+i])
+			boxRunes := []rune(line)
+			if leftPad+len(boxRunes) <= len(lineRunes) {
+				copy(lineRunes[leftPad:], boxRunes)
+				screenLines[topPad+i] = string(lineRunes)
+			}
+		}
+	}
+	
+	// Overlay confirmation modal if needed
+	if m.showConfirm {
+		m.overlayConfirmModal(screenLines)
+	}
+	
+	// Build final output
+	var sb strings.Builder
+	for _, line := range screenLines {
+		sb.WriteString(strings.TrimRight(line, " "))
 		sb.WriteString("\n")
 	}
+	
 	return sb.String()
+}
+
+// overlayConfirmModal overlays a confirmation dialog on the screen buffer with proper inverse colors
+func (m model) overlayConfirmModal(screenLines []string) {
+	// Modal content
+	modalLines := []string{
+		"┌──────────────────────────────────────┐",
+		"│                                      │",
+		"│        Do you really want to quit?   │",
+		"│                                      │",
+		"│              [Y]es / [N]o            │",
+		"│                                      │",
+		"└──────────────────────────────────────┘",
+	}
+	
+	modalW := 40
+	modalH := len(modalLines)
+	
+	// Center the modal on screen
+	leftStart := (m.winW - modalW) / 2
+	topStart := (m.winH - modalH) / 2
+	
+	// Apply inverse colors using ANSI escape codes for better visibility
+	inverseOn := "\033[7m"  // Inverse video on
+	inverseOff := "\033[0m" // Reset all attributes
+	
+	// Overlay modal onto screen buffer
+	for i, modalLine := range modalLines {
+		screenRow := topStart + i
+		if screenRow >= 0 && screenRow < len(screenLines) {
+			// Get the current line as runes
+			lineRunes := []rune(screenLines[screenRow])
+			
+			// Create the styled modal line
+			styledLine := inverseOn + modalLine + inverseOff
+			
+			// Make sure we have enough space
+			if leftStart >= 0 && leftStart+modalW <= len(lineRunes) {
+				// Replace the section with spaces first to clear it
+				for j := leftStart; j < leftStart+modalW && j < len(lineRunes); j++ {
+					lineRunes[j] = ' '
+				}
+				
+				// Convert back to string and insert styled content
+				screenLines[screenRow] = string(lineRunes[:leftStart]) + styledLine + string(lineRunes[leftStart+modalW:])
+			}
+		}
+	}
 }
 
 // Start launches the Bubble Tea program and blocks until it exits.
