@@ -12,7 +12,7 @@ import (
 )
 
 // handleSelectionKeys processes key input during mode selection screen
-func (m Model) handleSelectionKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleSelectionKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "up", "k":
 		if m.SelectedOption > 0 {
@@ -36,7 +36,7 @@ func (m Model) handleSelectionKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleInputKeys processes key input during orchestrator address entry
-func (m Model) handleInputKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleInputKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
 		// Connect to orchestrator and switch to worker mode
@@ -59,7 +59,7 @@ func (m Model) handleInputKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleOrchestratorKeys processes key input in orchestrator dashboard mode
-func (m Model) handleOrchestratorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleOrchestratorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.NodeRegistry == nil {
 		return m, nil
 	}
@@ -94,7 +94,7 @@ func (m Model) handleOrchestratorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleWorkerKeys processes key input in worker mode (same as Phase 01)
-func (m Model) handleWorkerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleWorkerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		// Disconnect from orchestrator and return to menu
@@ -110,7 +110,7 @@ func (m Model) handleWorkerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 // startOrchestratorMode initializes the gRPC server and switches to orchestrator mode
-func (m Model) startOrchestratorMode() (tea.Model, tea.Cmd) {
+func (m *Model) startOrchestratorMode() (tea.Model, tea.Cmd) {
 	// Create gRPC server
 	m.GrpcServer = cluster.NewServer()
 	m.NodeRegistry = m.GrpcServer.GetRegistry()
@@ -143,7 +143,7 @@ func (m Model) startOrchestratorMode() (tea.Model, tea.Cmd) {
 }
 
 // startWorkerMode initializes the gRPC client and switches to worker mode
-func (m Model) startWorkerMode() (tea.Model, tea.Cmd) {
+func (m *Model) startWorkerMode() (tea.Model, tea.Cmd) {
 	// Create gRPC client
 	m.GrpcClient = cluster.NewClient("worker-node")
 	

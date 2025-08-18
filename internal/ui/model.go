@@ -4,14 +4,15 @@ import (
 	"fmt"
 	"time"
 
+	"cares/internal/functions"
 	"cares/internal/metrics"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 // NewModel returns an initialized model starting in mode selection.
-func NewModel() Model {
-	return Model{
+func NewModel() *Model {
+	return &Model{
 		// Phase 01 defaults
 		CPU:      "N/A",
 		Mem:      "N/A",
@@ -34,20 +35,20 @@ func NewModel() Model {
 }
 
 // NewModelWithInterval allows creating a model with a custom sampling interval.
-func NewModelWithInterval(d time.Duration) Model {
+func NewModelWithInterval(d time.Duration) *Model {
 	m := NewModel()
 	m.interval = d
 	return m
 }
 
 // Init is called when the program starts. Kick off the first metric sampling tick.
-func (m Model) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	return m.tickCmd()
 }
 
 // tickCmd returns a tea.Cmd that samples metrics after the configured interval
 // and sends a MetricsMsg to the Update loop.
-func (m Model) tickCmd() tea.Cmd {
+func (m *Model) tickCmd() tea.Cmd {
 	interval := m.interval
 	return tea.Tick(interval, func(t time.Time) tea.Msg {
 		cpuVal, err1 := metrics.GetCPUUsage()
@@ -63,13 +64,23 @@ func (m Model) tickCmd() tea.Cmd {
 }
 
 // Update handles incoming messages. It processes different behavior based on current mode.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		// Global quit confirmation (works in all modes)
 		if m.ShowConfirm {
 			switch msg.String() {
 			case "y", "Y":
+				// Save function registry before quitting if it exists
+				if m.FunctionRegistry != nil {
+					// Save synchronously to ensure it completes before exiting
+					if err := m.FunctionRegistry.SaveToFile(functions.DefaultStoragePath); err != nil {
+						// Log error but still quit
+						fmt.Printf("Warning: Failed to save function registry: %v\n", err)
+					} else {
+						fmt.Printf("Function registry saved to %s\n", functions.DefaultStoragePath)
+					}
+				}
 				return m, tea.Quit
 			case "n", "N", "esc":
 				m.ShowConfirm = false

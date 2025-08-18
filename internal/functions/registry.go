@@ -1,7 +1,11 @@
 package functions
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -24,11 +28,23 @@ type Registry struct {
 	functions map[string]*Function
 }
 
+// The default storage file path
+const DefaultStoragePath = "data/functions.json"
+
 // NewRegistry creates a new function registry
 func NewRegistry() *Registry {
-	return &Registry{
+	registry := &Registry{
 		functions: make(map[string]*Function),
 	}
+	
+	// Try to load from default storage file
+	err := registry.LoadFromFile(DefaultStoragePath)
+	if err != nil {
+		// Just log the error, don't fail
+		fmt.Printf("Warning: Could not load function registry: %v\n", err)
+	}
+	
+	return registry
 }
 
 // AddFunction adds a new function to the registry
@@ -54,6 +70,10 @@ func (r *Registry) AddFunction(name, image, description string) (*Function, erro
 	}
 
 	r.functions[function.ID] = function
+	
+	// Save changes to file
+	go r.SaveToFile(DefaultStoragePath) // Run in background to avoid blocking
+	
 	return function, nil
 }
 
@@ -111,6 +131,9 @@ func (r *Registry) RemoveFunction(id string) bool {
 	_, exists := r.functions[id]
 	if exists {
 		delete(r.functions, id)
+		
+		// Save changes to file
+		go r.SaveToFile(DefaultStoragePath) // Run in background to avoid blocking
 	}
 
 	return exists
@@ -135,5 +158,72 @@ func (r *Registry) UpdateFunctionStatus(id, status string) bool {
 	}
 
 	fn.Status = status
+	
+	// Save changes to file
+	go r.SaveToFile(DefaultStoragePath) // Run in background to avoid blocking
+	
 	return true
+}
+
+// SaveToFile saves the registry to a JSON file
+func (r *Registry) SaveToFile(filePath string) error {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	
+	// Create directory if it doesn't exist
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %v", err)
+	}
+	
+	// Convert registry to a slice for serialization
+	functions := r.GetAllFunctions()
+	
+	// Marshal to JSON
+	data, err := json.MarshalIndent(functions, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal registry: %v", err)
+	}
+	
+	// Write to file
+	if err := ioutil.WriteFile(filePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write registry file: %v", err)
+	}
+	
+	return nil
+}
+
+// LoadFromFile loads the registry from a JSON file
+func (r *Registry) LoadFromFile(filePath string) error {
+	// Check if file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		// File doesn't exist, but that's not an error
+		return nil
+	}
+	
+	// Read file
+	data, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read registry file: %v", err)
+	}
+	
+	// Unmarshal JSON
+	var functions []*Function
+	if err := json.Unmarshal(data, &functions); err != nil {
+		return fmt.Errorf("failed to unmarshal registry: %v", err)
+	}
+	
+	// Lock and update registry
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	
+	// Clear existing functions
+	r.functions = make(map[string]*Function)
+	
+	// Add loaded functions
+	for _, fn := range functions {
+		r.functions[fn.ID] = fn
+	}
+	
+	return nil
 }

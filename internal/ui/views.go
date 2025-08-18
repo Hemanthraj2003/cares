@@ -5,7 +5,7 @@ import (
 )
 
 // View renders the TUI based on current mode using pure Lipgloss
-func (m Model) View() string {
+func (m *Model) View() string {
 	// If window size not yet known, show loading
 	if m.WinW == 0 || m.WinH == 0 {
 		return "CARES — Phase 02\n\nDetermining terminal size...\n"

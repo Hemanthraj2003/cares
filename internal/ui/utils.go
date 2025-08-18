@@ -29,7 +29,7 @@ func min(a, b int) int {
 }
 
 // renderMainContainerWithHelp renders content with border and custom help text at bottom
-func (m Model) renderMainContainerWithHelp(content []string, helpText string) string {
+func (m *Model) renderMainContainerWithHelp(content []string, helpText string) string {
 	// Join all content lines
 	contentStr := strings.Join(content, "\n")
 	
@@ -69,7 +69,7 @@ func (m Model) renderMainContainerWithHelp(content []string, helpText string) st
 }
 
 // overlayConfirmModal overlays a confirmation dialog OVER the existing content
-func (m Model) overlayConfirmModal(screenContent string) string {
+func (m *Model) overlayConfirmModal(screenContent string) string {
 	// Create a simple modal box
 	modalContent := "Do you really want to quit?\n\n[Y]es / [N]o"
 	
@@ -112,7 +112,7 @@ func (m Model) overlayConfirmModal(screenContent string) string {
 }
 
 // overlayFunctionConfirmModal overlays a function registration confirmation dialog
-func (m Model) overlayFunctionConfirmModal(screenContent string) string {
+func (m *Model) overlayFunctionConfirmModal(screenContent string) string {
 	// Get local IP for API endpoint display
 	localIP := getLocalIP()
 	
