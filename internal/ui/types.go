@@ -78,6 +78,12 @@ type Model struct {
 	FunctionFormImage string
 	FunctionFormDesc string
 	FunctionFormField int // 0=name, 1=image, 2=desc
+	
+	// Function confirmation modal state
+	ShowFunctionConfirmModal bool
+	FunctionConfirmName string
+	FunctionConfirmImage string
+	FunctionConfirmDesc string
 }
 
 // MetricsMsg is sent by the sampler to the UI update loop.

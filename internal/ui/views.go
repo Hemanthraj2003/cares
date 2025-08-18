@@ -52,9 +52,14 @@ func (m Model) View() string {
 	}
 	
 	// Render using pure Lipgloss container
-	if m.ShowConfirm {
-		return m.overlayConfirmModal(m.renderMainContainerWithHelp(content, helpText))
+	baseView := m.renderMainContainerWithHelp(content, helpText)
+	
+	// Layer modals in priority order (only one should be active at a time)
+	if m.ShowFunctionConfirmModal {
+		return m.overlayFunctionConfirmModal(baseView)
+	} else if m.ShowConfirm {
+		return m.overlayConfirmModal(baseView)
 	}
 	
-	return m.renderMainContainerWithHelp(content, helpText)
+	return baseView
 }

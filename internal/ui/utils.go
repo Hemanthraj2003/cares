@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"net"
 	"strings"
 
@@ -91,6 +92,96 @@ func (m Model) overlayConfirmModal(screenContent string) string {
 	// Calculate center position for modal
 	centerY := len(lines) / 2 - 2
 	centerX := (m.WinW - modalWidth) / 2
+	
+	// Insert modal lines over the base content
+	modalLines := strings.Split(modal, "\n")
+	for i, modalLine := range modalLines {
+		lineIdx := centerY + i
+		if lineIdx >= 0 && lineIdx < len(lines) {
+			// Create padding to center the modal horizontally
+			padding := strings.Repeat(" ", centerX)
+			if centerX > 0 {
+				lines[lineIdx] = padding + modalLine
+			} else {
+				lines[lineIdx] = modalLine
+			}
+		}
+	}
+	
+	return strings.Join(lines, "\n")
+}
+
+// overlayFunctionConfirmModal overlays a function registration confirmation dialog
+func (m Model) overlayFunctionConfirmModal(screenContent string) string {
+	// Get local IP for API endpoint display
+	localIP := getLocalIP()
+	
+	// Create modal content with formatted API endpoint
+	modalWidth := min(m.WinW/2, 60)
+	if modalWidth < 40 {
+		modalWidth = 40
+	}
+	
+	// Create title with inverse style
+	title := lipgloss.NewStyle().
+		Bold(true).
+		Reverse(true).
+		Padding(0, 1).
+		Align(lipgloss.Center).
+		Render("CONFIRM FUNCTION REGISTRATION")
+	
+	// Create function details
+	details := fmt.Sprintf(`Name: %s
+Image: %s
+Description: %s
+
+API Endpoint:
+POST http://%s:8080/invoke/%s
+
+This function will be available at the above endpoint.`, 
+		m.FunctionConfirmName,
+		m.FunctionConfirmImage,
+		m.FunctionConfirmDesc,
+		localIP,
+		m.FunctionConfirmName)
+	
+	// Create side-by-side buttons
+	buttons := lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		lipgloss.NewStyle().Padding(0, 3).Render("[Y]es"),
+		lipgloss.NewStyle().Padding(0, 3).Render("[N]o"),
+	)
+	
+	// Combine all elements
+	modalContent := lipgloss.JoinVertical(
+		lipgloss.Center,
+		title,
+		"",
+		details,
+		"",
+		buttons,
+	)
+	
+	modal := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("63")).
+		Padding(1).
+		Width(modalWidth).
+		Align(lipgloss.Center).
+		Render(modalContent)
+	
+	// Split base content into lines
+	lines := strings.Split(screenContent, "\n")
+	
+	// Calculate center position for modal
+	centerY := len(lines)/2 - strings.Count(modalContent, "\n")/2 - 2
+	if centerY < 0 {
+		centerY = 0
+	}
+	centerX := (m.WinW - modalWidth) / 2
+	if centerX < 0 {
+		centerX = 0
+	}
 	
 	// Insert modal lines over the base content
 	modalLines := strings.Split(modal, "\n")

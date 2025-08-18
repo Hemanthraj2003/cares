@@ -172,7 +172,12 @@ func (m Model) startWorkerMode() (tea.Model, tea.Cmd) {
 }
 
 // handleOrchestratorSidebarKeys processes key input in orchestrator sidebar mode
-func (m Model) handleOrchestratorSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleOrchestratorSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle function confirmation modal if open
+	if m.ShowFunctionConfirmModal {
+		return m.handleFunctionConfirmModalKeys(msg)
+	}
+	
 	// Handle function form input if form is open
 	if m.ShowFunctionForm {
 		return m.handleFunctionFormKeys(msg)
@@ -224,7 +229,7 @@ func (m Model) handleOrchestratorSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 }
 
 // handleFunctionFormKeys processes key input in function registration form
-func (m Model) handleFunctionFormKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleFunctionFormKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		// Close form
@@ -244,9 +249,9 @@ func (m Model) handleFunctionFormKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.FunctionFormField--
 		}
 	case "enter":
-		// Submit form if all required fields are filled
+		// Show confirmation modal if all required fields are filled
 		if m.FunctionFormName != "" && m.FunctionFormImage != "" {
-			return m.submitFunction()
+			return m.validateAndShowConfirmModal()
 		}
 	case "backspace":
 		// Delete character from current field
@@ -287,22 +292,48 @@ func (m Model) handleFunctionFormKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// submitFunction submits the function form to the API
-func (m Model) submitFunction() (tea.Model, tea.Cmd) {
-	// Add function directly to registry (no HTTP call needed since we're in the same process)
-	if m.FunctionRegistry != nil {
-		_, err := m.FunctionRegistry.AddFunction(m.FunctionFormName, m.FunctionFormImage, m.FunctionFormDesc)
-		if err != nil {
-			// TODO: Show error message in UI
-			log.Printf("Failed to add function: %v", err)
-		} else {
-			// Success - close form
-			m.ShowFunctionForm = false
-			m.FunctionFormName = ""
-			m.FunctionFormImage = ""
-			m.FunctionFormDesc = ""
-			m.FunctionFormField = 0
-			m.SidebarView = "functions" // Switch to functions view to see the new function
+// validateAndShowConfirmModal validates the function form before showing confirmation
+func (m *Model) validateAndShowConfirmModal() (tea.Model, tea.Cmd) {
+	// First set the confirm fields so they can be displayed in the modal
+	m.FunctionConfirmName = m.FunctionFormName
+	m.FunctionConfirmImage = m.FunctionFormImage
+	m.FunctionConfirmDesc = m.FunctionFormDesc
+	
+	// Show the confirmation modal
+	m.ShowFunctionConfirmModal = true
+	
+	return m, nil
+}
+
+// handleFunctionConfirmModalKeys processes key input in function confirmation modal
+func (m *Model) handleFunctionConfirmModalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "n", "N", "esc":
+		// No - just close the modal
+		m.ShowFunctionConfirmModal = false
+		
+	case "y", "Y":
+		// Yes - close modal and add function
+		m.ShowFunctionConfirmModal = false
+		
+		// Add function directly to registry
+		if m.FunctionRegistry != nil {
+			_, err := m.FunctionRegistry.AddFunction(m.FunctionConfirmName, m.FunctionFormImage, m.FunctionFormDesc)
+			if err != nil {
+				// TODO: Show error message in UI
+				log.Printf("Failed to add function: %v", err)
+			} else {
+				// Success - close form and reset fields
+				m.ShowFunctionForm = false
+				m.FunctionFormName = ""
+				m.FunctionFormImage = ""
+				m.FunctionFormDesc = ""
+				m.FunctionFormField = 0
+				m.FunctionConfirmName = ""
+				m.FunctionConfirmImage = ""
+				m.FunctionConfirmDesc = ""
+				m.SidebarSelected = 2 // Switch to Functions view
+			}
 		}
 	}
 	
