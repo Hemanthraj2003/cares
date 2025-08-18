@@ -7,11 +7,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"sync"
 
 	"google.golang.org/grpc"
 
+	"cares/internal/executor"
 	"cares/internal/registry"
 )
 
@@ -125,4 +127,31 @@ func (s *Server) StartServer(port string) error {
 	RegisterClusterServiceServer(grpcServer, s)
 
 	return grpcServer.Serve(lis)
+}
+
+// ExecuteFunction executes a Docker container on this worker node
+func (s *Server) ExecuteFunction(ctx context.Context, req *FunctionRequest) (*FunctionResult, error) {
+	// Log the execution request
+	log.Printf("[INFO] Received execution request for image '%s' (function: %s)", 
+		req.DockerImage, req.FunctionName)
+	
+	// Execute the Docker container
+	output, err := executor.RunContainer(req.DockerImage)
+	
+	if err != nil {
+		log.Printf("[ERROR] Container execution failed: %v", err)
+		return &FunctionResult{
+			Output:  "",
+			Success: false,
+			Error:   fmt.Sprintf("Container execution failed: %v", err),
+		}, nil
+	}
+	
+	log.Printf("[INFO] Container finished successfully. Output length: %d bytes", len(output))
+	
+	return &FunctionResult{
+		Output:  output,
+		Success: true,
+		Error:   "",
+	}, nil
 }

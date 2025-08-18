@@ -119,6 +119,9 @@ func (m *Model) startOrchestratorMode() (tea.Model, tea.Cmd) {
 	m.FunctionRegistry = functions.NewRegistry()
 	m.ApiServer = api.NewServer(m.FunctionRegistry)
 	
+	// Connect API server to node registry for function execution
+	m.ApiServer.SetNodeRegistry(m.NodeRegistry)
+	
 	// Switch to sidebar mode for Phase 3
 	m.Mode = ModeOrchestratorSidebar
 	m.SidebarSelected = 0  // Start with "Logs" selected
@@ -158,6 +161,14 @@ func (m *Model) startWorkerMode() (tea.Model, tea.Cmd) {
 	
 	// Switch to worker mode and start metrics collection
 	m.Mode = ModeWorker
+	
+	// Create and start worker's own gRPC server for receiving function execution requests
+	m.WorkerGrpcServer = cluster.NewServer()
+	go func() {
+		if err := m.WorkerGrpcServer.StartServer("50052"); err != nil {
+			log.Printf("Worker gRPC server error: %v", err)
+		}
+	}()
 	
 	// Start heartbeat in background
 	go func() {

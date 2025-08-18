@@ -11,6 +11,9 @@ service ClusterService {
   
   // Heartbeat establishes a bidirectional stream for metrics and commands
   rpc Heartbeat(stream NodeMetrics) returns (stream OrchestratorCommand);
+  
+  // ExecuteFunction executes a Docker container on the worker node
+  rpc ExecuteFunction(FunctionRequest) returns (FunctionResult);
 }
 
 // NodeInfo contains information about a node joining the cluster
@@ -42,4 +45,17 @@ message OrchestratorCommand {
   string command_type = 1;
   string payload = 2;
   int64 timestamp = 3;
+}
+
+// FunctionRequest contains the Docker image to execute on a worker
+message FunctionRequest {
+  string docker_image = 1;
+  string function_name = 2;  // For logging purposes
+}
+
+// FunctionResult contains the result of function execution
+message FunctionResult {
+  string output = 1;
+  bool success = 2;
+  string error = 3;
 }

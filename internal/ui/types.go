@@ -63,6 +63,7 @@ type Model struct {
 	
 	// Worker mode - connection to orchestrator
 	GrpcClient *cluster.Client
+	WorkerGrpcServer *cluster.Server // Worker's own gRPC server for receiving function execution requests
 	
 	// Phase 3 - Function management
 	FunctionRegistry *functions.Registry

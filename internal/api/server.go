@@ -1,25 +1,40 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	"cares/internal/cluster"
 	"cares/internal/functions"
+	"cares/internal/registry"
+	"cares/internal/scheduler"
 )
 
 // Server represents the REST API server for function management
 type Server struct {
-	registry *functions.Registry
-	server   *http.Server
+	registry     *functions.Registry
+	nodeRegistry *registry.NodeRegistry
+	scheduler    *scheduler.Scheduler
+	server       *http.Server
 }
 
 // NewServer creates a new REST API server
 func NewServer(registry *functions.Registry) *Server {
 	return &Server{
-		registry: registry,
+		registry:  registry,
+		scheduler: scheduler.NewScheduler(),
 	}
+}
+
+// SetNodeRegistry sets the node registry for function execution
+func (s *Server) SetNodeRegistry(nodeRegistry *registry.NodeRegistry) {
+	s.nodeRegistry = nodeRegistry
 }
 
 // FunctionRequest represents the JSON payload for function registration
@@ -51,6 +66,7 @@ func (s *Server) StartServer(port string) error {
 	// Register routes
 	mux.HandleFunc("/functions", s.handleFunctions)
 	mux.HandleFunc("/functions/", s.handleFunctionByID)
+	mux.HandleFunc("/invoke/", s.handleInvokeFunction)
 
 	s.server = &http.Server{
 		Addr:    ":" + port,
@@ -212,4 +228,94 @@ func (s *Server) writeError(w http.ResponseWriter, statusCode int, message strin
 	}
 
 	json.NewEncoder(w).Encode(response)
+}
+
+// handleInvokeFunction handles POST /invoke/{function_name} endpoint
+func (s *Server) handleInvokeFunction(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		s.writeError(w, http.StatusMethodNotAllowed, "Method not allowed")
+		return
+	}
+
+	// Extract function name from URL path
+	path := r.URL.Path
+	if len(path) < 9 { // "/invoke/" = 8 chars
+		s.writeError(w, http.StatusBadRequest, "Function name required")
+		return
+	}
+	functionName := path[8:] // Get everything after "/invoke/"
+
+	// Step 1: Lookup function in registry
+	function, exists := s.registry.GetFunctionByName(functionName)
+	if !exists {
+		s.writeError(w, http.StatusNotFound, fmt.Sprintf("Function '%s' not found", functionName))
+		return
+	}
+
+	// Step 2: Schedule execution (select optimal worker)
+	if s.nodeRegistry == nil {
+		s.writeError(w, http.StatusServiceUnavailable, "No worker nodes available")
+		return
+	}
+
+	selectedNode, err := s.scheduler.SelectNodeForExecution(s.nodeRegistry)
+	if err != nil {
+		s.writeError(w, http.StatusServiceUnavailable, fmt.Sprintf("Failed to select worker: %v", err))
+		return
+	}
+
+	log.Printf("[INFO] Selected node '%s' for function '%s' execution", selectedNode.ID, functionName)
+
+	// Step 3: Execute function on selected worker via gRPC
+	result, err := s.executeOnWorker(selectedNode, function)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, fmt.Sprintf("Execution failed: %v", err))
+		return
+	}
+
+	// Step 4: Return result
+	if !result.Success {
+		s.writeError(w, http.StatusInternalServerError, fmt.Sprintf("Function execution failed: %s", result.Error))
+		return
+	}
+
+	// Return successful result
+	response := map[string]interface{}{
+		"status": "success",
+		"output": result.Output,
+		"node":   selectedNode.ID,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// executeOnWorker executes a function on a specific worker node via gRPC
+func (s *Server) executeOnWorker(node *registry.Node, function *functions.Function) (*cluster.FunctionResult, error) {
+	// Connect to worker's gRPC server
+	conn, err := grpc.Dial(node.Address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to worker %s: %v", node.ID, err)
+	}
+	defer conn.Close()
+
+	// Create gRPC client
+	client := cluster.NewClusterServiceClient(conn)
+
+	// Call ExecuteFunction
+	ctx := context.Background()
+	req := &cluster.FunctionRequest{
+		DockerImage:  function.Image,
+		FunctionName: function.Name,
+	}
+
+	log.Printf("[INFO] Executing function '%s' with image '%s' on worker '%s'", 
+		function.Name, function.Image, node.ID)
+
+	result, err := client.ExecuteFunction(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("gRPC call failed: %v", err)
+	}
+
+	return result, nil
 }

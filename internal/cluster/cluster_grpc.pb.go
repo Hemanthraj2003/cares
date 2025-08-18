@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v6.31.1
-// source: internal/cluster/cluster.proto
+// source: cluster.proto
 
 package cluster
 
@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ClusterService_JoinCluster_FullMethodName = "/cluster.ClusterService/JoinCluster"
-	ClusterService_Heartbeat_FullMethodName   = "/cluster.ClusterService/Heartbeat"
+	ClusterService_JoinCluster_FullMethodName     = "/cluster.ClusterService/JoinCluster"
+	ClusterService_Heartbeat_FullMethodName       = "/cluster.ClusterService/Heartbeat"
+	ClusterService_ExecuteFunction_FullMethodName = "/cluster.ClusterService/ExecuteFunction"
 )
 
 // ClusterServiceClient is the client API for ClusterService service.
@@ -33,6 +34,8 @@ type ClusterServiceClient interface {
 	JoinCluster(ctx context.Context, in *NodeInfo, opts ...grpc.CallOption) (*Acknowledgement, error)
 	// Heartbeat establishes a bidirectional stream for metrics and commands
 	Heartbeat(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[NodeMetrics, OrchestratorCommand], error)
+	// ExecuteFunction executes a Docker container on the worker node
+	ExecuteFunction(ctx context.Context, in *FunctionRequest, opts ...grpc.CallOption) (*FunctionResult, error)
 }
 
 type clusterServiceClient struct {
@@ -66,6 +69,16 @@ func (c *clusterServiceClient) Heartbeat(ctx context.Context, opts ...grpc.CallO
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ClusterService_HeartbeatClient = grpc.BidiStreamingClient[NodeMetrics, OrchestratorCommand]
 
+func (c *clusterServiceClient) ExecuteFunction(ctx context.Context, in *FunctionRequest, opts ...grpc.CallOption) (*FunctionResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FunctionResult)
+	err := c.cc.Invoke(ctx, ClusterService_ExecuteFunction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ClusterServiceServer is the server API for ClusterService service.
 // All implementations must embed UnimplementedClusterServiceServer
 // for forward compatibility.
@@ -76,6 +89,8 @@ type ClusterServiceServer interface {
 	JoinCluster(context.Context, *NodeInfo) (*Acknowledgement, error)
 	// Heartbeat establishes a bidirectional stream for metrics and commands
 	Heartbeat(grpc.BidiStreamingServer[NodeMetrics, OrchestratorCommand]) error
+	// ExecuteFunction executes a Docker container on the worker node
+	ExecuteFunction(context.Context, *FunctionRequest) (*FunctionResult, error)
 	mustEmbedUnimplementedClusterServiceServer()
 }
 
@@ -91,6 +106,9 @@ func (UnimplementedClusterServiceServer) JoinCluster(context.Context, *NodeInfo)
 }
 func (UnimplementedClusterServiceServer) Heartbeat(grpc.BidiStreamingServer[NodeMetrics, OrchestratorCommand]) error {
 	return status.Errorf(codes.Unimplemented, "method Heartbeat not implemented")
+}
+func (UnimplementedClusterServiceServer) ExecuteFunction(context.Context, *FunctionRequest) (*FunctionResult, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ExecuteFunction not implemented")
 }
 func (UnimplementedClusterServiceServer) mustEmbedUnimplementedClusterServiceServer() {}
 func (UnimplementedClusterServiceServer) testEmbeddedByValue()                        {}
@@ -138,6 +156,24 @@ func _ClusterService_Heartbeat_Handler(srv interface{}, stream grpc.ServerStream
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ClusterService_HeartbeatServer = grpc.BidiStreamingServer[NodeMetrics, OrchestratorCommand]
 
+func _ClusterService_ExecuteFunction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FunctionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ClusterServiceServer).ExecuteFunction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ClusterService_ExecuteFunction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ClusterServiceServer).ExecuteFunction(ctx, req.(*FunctionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ClusterService_ServiceDesc is the grpc.ServiceDesc for ClusterService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -149,6 +185,10 @@ var ClusterService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "JoinCluster",
 			Handler:    _ClusterService_JoinCluster_Handler,
 		},
+		{
+			MethodName: "ExecuteFunction",
+			Handler:    _ClusterService_ExecuteFunction_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -158,5 +198,5 @@ var ClusterService_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
-	Metadata: "internal/cluster/cluster.proto",
+	Metadata: "cluster.proto",
 }

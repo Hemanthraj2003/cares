@@ -149,7 +149,9 @@ func (c *Client) IsConnected() bool {
 }
 
 // getLocalAddress returns a string representation of the local address.
-// This is a simplified implementation for Phase 02.
+// Returns localhost with a port for gRPC connections back to this worker
 func (c *Client) getLocalAddress() string {
-	return "worker-" + c.nodeID[:8] // Use first 8 chars of UUID
+	// For Phase 4: Return localhost with default port so orchestrator can connect back
+	// In production, this would be the actual network interface IP
+	return "localhost:50052" // Different port from orchestrator (50051)
 }
