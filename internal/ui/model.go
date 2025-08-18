@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"cares/internal/functions"
+	"cares/internal/logging"
 	"cares/internal/metrics"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -76,9 +77,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// Save synchronously to ensure it completes before exiting
 					if err := m.FunctionRegistry.SaveToFile(functions.DefaultStoragePath); err != nil {
 						// Log error but still quit
-						fmt.Printf("Warning: Failed to save function registry: %v\n", err)
+						logging.Warn("Failed to save function registry: %v", err)
 					} else {
-						fmt.Printf("Function registry saved to %s\n", functions.DefaultStoragePath)
+						logging.Info("Function registry saved to %s", functions.DefaultStoragePath)
 					}
 				}
 				return m, tea.Quit

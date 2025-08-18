@@ -7,12 +7,20 @@
 package main
 
 import (
+	"cares/internal/logging"
 	"cares/internal/ui"
 	"fmt"
 	"os"
 )
 
 func main() {
+	// Initialize logging system for TUI mode
+	if err := logging.InitLogger(true); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize logging: %v\n", err)
+		os.Exit(1)
+	}
+	defer logging.Close()
+
 	// Start the minimal TUI (blocks until exit)
 	if err := ui.Start(); err != nil {
 		fmt.Fprintln(os.Stderr, "TUI exited with error:", err)

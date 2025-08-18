@@ -2,11 +2,11 @@ package ui
 
 import (
 	"context"
-	"log"
 
 	"cares/internal/api"
 	"cares/internal/cluster"
 	"cares/internal/functions"
+	"cares/internal/logging"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -130,14 +130,14 @@ func (m *Model) startOrchestratorMode() (tea.Model, tea.Cmd) {
 	go func() {
 		if err := m.GrpcServer.StartServer("50051"); err != nil {
 			// TODO: In Phase 03, send error message to TUI
-			log.Printf("gRPC server error: %v", err)
+			logging.Error("gRPC server error: %v", err)
 		}
 	}()
 	
 	// Start REST API server in background goroutine
 	go func() {
 		if err := m.ApiServer.StartServer("8080"); err != nil {
-			log.Printf("REST API server error: %v", err)
+			logging.Error("REST API server error: %v", err)
 		}
 	}()
 	
@@ -153,7 +153,7 @@ func (m *Model) startWorkerMode() (tea.Model, tea.Cmd) {
 	// Connect to orchestrator
 	if err := m.GrpcClient.Connect(m.OrchestratorAddr); err != nil {
 		// TODO: In Phase 03, show error to user
-		log.Printf("Failed to connect to orchestrator: %v", err)
+		logging.Error("Failed to connect to orchestrator: %v", err)
 		// Go back to input mode
 		m.Mode = ModeWorkerInput
 		return m, nil
@@ -166,7 +166,7 @@ func (m *Model) startWorkerMode() (tea.Model, tea.Cmd) {
 	m.WorkerGrpcServer = cluster.NewServer()
 	go func() {
 		if err := m.WorkerGrpcServer.StartServer("50052"); err != nil {
-			log.Printf("Worker gRPC server error: %v", err)
+			logging.Error("Worker gRPC server error: %v", err)
 		}
 	}()
 	
@@ -174,7 +174,7 @@ func (m *Model) startWorkerMode() (tea.Model, tea.Cmd) {
 	go func() {
 		ctx := context.Background()
 		if err := m.GrpcClient.StartHeartbeat(ctx); err != nil {
-			log.Printf("Heartbeat error: %v", err)
+			logging.Error("Heartbeat error: %v", err)
 		}
 	}()
 	
@@ -332,7 +332,7 @@ func (m *Model) handleFunctionConfirmModalKeys(msg tea.KeyMsg) (tea.Model, tea.C
 			_, err := m.FunctionRegistry.AddFunction(m.FunctionConfirmName, m.FunctionFormImage, m.FunctionFormDesc)
 			if err != nil {
 				// TODO: Show error message in UI
-				log.Printf("Failed to add function: %v", err)
+				logging.Error("Failed to add function: %v", err)
 			} else {
 				// Success - close form and reset fields
 				m.ShowFunctionForm = false

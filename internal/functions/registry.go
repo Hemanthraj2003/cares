@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"cares/internal/logging"
+
 	"github.com/google/uuid"
 )
 
@@ -41,7 +43,7 @@ func NewRegistry() *Registry {
 	err := registry.LoadFromFile(DefaultStoragePath)
 	if err != nil {
 		// Just log the error, don't fail
-		fmt.Printf("Warning: Could not load function registry: %v\n", err)
+		logging.Warn("Could not load function registry: %v", err)
 	}
 	
 	return registry

@@ -1,10 +1,18 @@
+// Package api provides a REST API server for the CARES function execution platform.
+// It exposes HTTP endpoints for function registration, listing, and invocation,
+// integrating with the scheduler to execute functions on optimal worker nodes.
+//
+// Available endpoints:
+//   - GET /functions - List all registered functions
+//   - POST /functions - Register a new function
+//   - GET /functions/{id} - Get function details by ID
+//   - POST /invoke/{name} - Execute a function by name
 package api
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
 	"google.golang.org/grpc"
@@ -12,19 +20,43 @@ import (
 
 	"cares/internal/cluster"
 	"cares/internal/functions"
+	"cares/internal/logging"
 	"cares/internal/registry"
 	"cares/internal/scheduler"
 )
 
-// Server represents the REST API server for function management
+// Server represents the REST API server for function management and execution.
+// It provides HTTP endpoints for function lifecycle management and coordinates
+// with the scheduler to execute functions on worker nodes via gRPC.
+//
+// The server supports CORS for browser compatibility and provides JSON responses
+// for all endpoints. It integrates with the function registry for persistence
+// and the node registry for worker node management.
 type Server struct {
-	registry     *functions.Registry
-	nodeRegistry *registry.NodeRegistry
-	scheduler    *scheduler.Scheduler
-	server       *http.Server
+	registry     *functions.Registry  // Function registry for storage and retrieval
+	nodeRegistry *registry.NodeRegistry // Node registry for worker management
+	scheduler    *scheduler.Scheduler    // Scheduler for optimal node selection
+	server       *http.Server           // HTTP server instance
 }
 
-// NewServer creates a new REST API server
+// NewServer creates a new REST API server with the provided function registry.
+//
+// The server is initialized with a function registry for persistence and
+// a scheduler for worker node selection. The node registry can be set later
+// using SetNodeRegistry method.
+//
+// Parameters:
+//   - registry: Function registry for storing and retrieving function definitions
+//
+// Returns:
+//   - *Server: Configured API server ready to handle HTTP requests
+//
+// Example usage:
+//
+//	funcRegistry := functions.NewRegistry()
+//	apiServer := NewServer(funcRegistry)
+//	apiServer.SetNodeRegistry(nodeRegistry)
+//	err := apiServer.StartServer("8080")
 func NewServer(registry *functions.Registry) *Server {
 	return &Server{
 		registry:  registry,
@@ -73,7 +105,7 @@ func (s *Server) StartServer(port string) error {
 		Handler: s.corsMiddleware(mux),
 	}
 
-	log.Printf("REST API server starting on port %s", port)
+	logging.Info("REST API server starting on port %s", port)
 	return s.server.ListenAndServe()
 }
 
@@ -264,7 +296,7 @@ func (s *Server) handleInvokeFunction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[INFO] Selected node '%s' for function '%s' execution", selectedNode.ID, functionName)
+	logging.Info("Selected node '%s' for function '%s' execution", selectedNode.ID, functionName)
 
 	// Step 3: Execute function on selected worker via gRPC
 	result, err := s.executeOnWorker(selectedNode, function)
@@ -309,7 +341,7 @@ func (s *Server) executeOnWorker(node *registry.Node, function *functions.Functi
 		FunctionName: function.Name,
 	}
 
-	log.Printf("[INFO] Executing function '%s' with image '%s' on worker '%s'", 
+	logging.Info("Executing function '%s' with image '%s' on worker '%s'", 
 		function.Name, function.Image, node.ID)
 
 	result, err := client.ExecuteFunction(ctx, req)
