@@ -14,11 +14,11 @@ import (
 // handleSelectionKeys processes key input during mode selection screen
 func (m *Model) handleSelectionKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "up", "k":
+	case "left", "h":
 		if m.SelectedOption > 0 {
 			m.SelectedOption--
 		}
-	case "down", "j":
+	case "right", "l":
 		if m.SelectedOption < 1 { // 0=orchestrator, 1=worker
 			m.SelectedOption++
 		}
@@ -196,22 +196,36 @@ func (m *Model) handleOrchestratorSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 	
 	switch msg.String() {
 	case "up", "k":
-		if m.SidebarSelected > 0 {
+		if m.FunctionTableFocused && m.SidebarSelected == 2 {
+			// Navigate functions table
+			if m.FunctionSelectedIndex > 0 {
+				m.FunctionSelectedIndex--
+			}
+		} else if m.SidebarSelected > 0 {
 			m.SidebarSelected--
 		}
 	case "down", "j":
-		maxItems := 4 // logs, orchestrator, functions, add-function
-		if m.SidebarSelected < maxItems-1 {
-			m.SidebarSelected++
+		if m.FunctionTableFocused && m.SidebarSelected == 2 {
+			// Navigate functions table
+			functions := m.FunctionRegistry.GetAllFunctions()
+			if m.FunctionSelectedIndex < len(functions)-1 {
+				m.FunctionSelectedIndex++
+			}
+		} else {
+			maxItems := 4 // logs, orchestrator, functions, add-function
+			if m.SidebarSelected < maxItems-1 {
+				m.SidebarSelected++
+			}
 		}
 	case "enter", " ":
 		switch m.SidebarSelected {
-		case 0: // Logs
+		case 0: // Orchestrator - now first/default
 			// Just selection change, content will update automatically
-		case 1: // Orchestrator
+		case 1: // Logs
 			// Just selection change, content will update automatically
 		case 2: // Functions
-			// Just selection change, content will update automatically
+			// Enter key focuses into the functions table for navigation
+			m.FunctionTableFocused = true
 		case 3: // Add Function
 			// Open function form
 			m.ShowFunctionForm = true
@@ -221,19 +235,26 @@ func (m *Model) handleOrchestratorSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 			m.FunctionFormField = 0
 		}
 	case "esc":
-		// Return to mode selection menu
-		// Cleanup orchestrator mode
-		if m.GrpcServer != nil {
-			// TODO: Properly stop the servers in Phase 03+
+		if m.FunctionTableFocused {
+			// Exit function table navigation
+			m.FunctionTableFocused = false
+		} else {
+			// Return to mode selection menu
+			// Cleanup orchestrator mode
+			if m.GrpcServer != nil {
+				// TODO: Properly stop the servers in Phase 03+
+			}
+			m.Mode = ModeSelection
+			m.GrpcServer = nil
+			m.NodeRegistry = nil
+			m.ApiServer = nil
+			m.FunctionRegistry = nil
+			m.NodeScrollOffset = 0
+			m.SidebarSelected = 0
+			m.ShowFunctionForm = false
+			m.FunctionTableFocused = false
+			m.FunctionSelectedIndex = 0
 		}
-		m.Mode = ModeSelection
-		m.GrpcServer = nil
-		m.NodeRegistry = nil
-		m.ApiServer = nil
-		m.FunctionRegistry = nil
-		m.NodeScrollOffset = 0
-		m.SidebarSelected = 0
-		m.ShowFunctionForm = false
 	}
 	
 	return m, nil

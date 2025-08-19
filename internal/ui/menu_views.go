@@ -7,47 +7,118 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// getModeSelectionContent returns simple mode selection - clean terminal style
+// getModeSelectionContent returns enhanced role selection screen with side-by-side options
 func (m Model) getModeSelectionContent() []string {
-	// Simple centered header
-	header := lipgloss.NewStyle().
+	// Main title with full form - no colors, just bold
+	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Align(lipgloss.Center).
-		Render("Phase 02 Cluster Setup")
+		MarginBottom(1)
 	
-	// Simple option styles - no fancy borders
-	baseStyle := lipgloss.NewStyle().
-		Padding(0, 2).
-		Align(lipgloss.Center)
+	title := titleStyle.Render("CARES - Cost-Aware Resource Allocation and Execution Scheduler")
 	
-	selectedStyle := baseStyle.
+	// Description about CARES and technology - plain text
+	descStyle := lipgloss.NewStyle().
+		Width(90).
+		Align(lipgloss.Center).
+		MarginBottom(2)
+	
+	description := descStyle.Render(
+		"A distributed computing platform for efficient containerized function execution.\n" +
+		"Built with Go, gRPC for communication, Docker for containerization, and Bubble Tea for the TUI.\n" +
+		"Enables cost-aware resource allocation across multiple nodes in a cluster.")
+	
+	// Role selection header - no colors, just bold
+	roleHeaderStyle := lipgloss.NewStyle().
+		Bold(true).
+		Align(lipgloss.Center).
+		MarginBottom(2)
+	
+	roleHeader := roleHeaderStyle.Render("SELECT YOUR ROLE:")
+	
+	// Option styles
+	optionWidth := 40
+	optionHeight := 12
+	
+	baseOptionStyle := lipgloss.NewStyle().
+		Width(optionWidth).
+		Height(optionHeight).
+		Border(lipgloss.NormalBorder()).
+		Padding(1, 2).
+		Align(lipgloss.Left)
+	
+	selectedOptionStyle := baseOptionStyle.
 		Reverse(true)
 	
-	// Simple options - just the essentials
-	option1 := "[ 1 ] Start Orchestrator"
-	option2 := "[ 2 ] Join Worker Pool"
+	// Option 1 - Orchestrator content
+	option1Content := "1. CLUSTER ORCHESTRATOR\n\n" +
+		"Start as central coordinator\n\n" +
+		"What happens when selected:\n" +
+		"• Initializes gRPC server on :50051\n" +
+		"• Creates cluster node registry\n" +
+		"• Launches web dashboard\n" +
+		"• Accepts worker connections\n" +
+		"• Manages function distribution\n" +
+		"• Provides cluster monitoring"
 	
-	var opt1, opt2 string
+	// Option 2 - Worker content
+	option2Content := "2. WORKER NODE\n\n" +
+		"Join existing cluster\n\n" +
+		"What happens when selected:\n" +
+		"• Prompts for orchestrator address\n" +
+		"• Establishes gRPC connection\n" +
+		"• Registers node capabilities\n" +
+		"• Starts local execution server\n" +
+		"• Reports system metrics\n" +
+		"• Waits for task assignments"
+	
+	// Apply selection styling to entire box
+	var orchestratorBox, workerBox string
 	if m.SelectedOption == 0 {
-		opt1 = selectedStyle.Render(option1)
-		opt2 = baseStyle.Render(option2)
+		orchestratorBox = selectedOptionStyle.Render(option1Content)
+		workerBox = baseOptionStyle.Render(option2Content)
 	} else {
-		opt1 = baseStyle.Render(option1)
-		opt2 = selectedStyle.Render(option2)
+		orchestratorBox = baseOptionStyle.Render(option1Content)
+		workerBox = selectedOptionStyle.Render(option2Content)
 	}
 	
-	// Create a centered layout that will work within the container
+	// Arrange options side by side
+	optionsRow := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		orchestratorBox,
+		strings.Repeat(" ", 6), // Spacing between options
+		workerBox,
+	)
+	
+	// Navigation instructions - plain text
+	navStyle := lipgloss.NewStyle().
+		Align(lipgloss.Center).
+		MarginTop(2)
+	
+	navigation := navStyle.Render("Use [←] [→] arrow keys to navigate • Press Enter to select your role")
+	
+	// System status footer - plain text
+	footerStyle := lipgloss.NewStyle().
+		Align(lipgloss.Center).
+		MarginTop(1)
+	
+	footer := footerStyle.Render("Current System Resources: CPU " + m.CPU + " | Memory " + m.Mem)
+	
+	// Create the complete layout
 	content := lipgloss.NewStyle().
-		Width(m.WinW - 8). // Account for container padding and borders
-		Height(m.WinH - 10). // Account for title, help, borders, padding
-		Align(lipgloss.Center, lipgloss.Center). // Both horizontal and vertical center
+		Width(m.WinW - 8).
+		Height(m.WinH - 10).
+		Align(lipgloss.Center, lipgloss.Center).
 		Render(lipgloss.JoinVertical(
 			lipgloss.Center,
-			header,
+			title,
 			"",
+			description,
 			"",
-			opt1,
-			opt2,
+			roleHeader,
+			optionsRow,
+			navigation,
+			footer,
 		))
 	
 	return strings.Split(content, "\n")

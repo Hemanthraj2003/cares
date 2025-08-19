@@ -84,6 +84,7 @@ func (m *Model) overlayConfirmModal(screenContent string) string {
 		Width(modalWidth).
 		Bold(true).
 		Align(lipgloss.Center).
+		Reverse(true).
 		Render(modalContent)
 	
 	// Split base content into lines

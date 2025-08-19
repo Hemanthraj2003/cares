@@ -80,6 +80,10 @@ type Model struct {
 	FunctionFormDesc string
 	FunctionFormField int // 0=name, 1=image, 2=desc
 	
+	// Function navigation state
+	FunctionTableFocused bool // True when user is navigating functions table
+	FunctionSelectedIndex int // Currently selected function in table
+	
 	// Function confirmation modal state
 	ShowFunctionConfirmModal bool
 	FunctionConfirmName string

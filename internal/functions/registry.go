@@ -110,7 +110,7 @@ func (r *Registry) GetFunctionByName(name string) (*Function, bool) {
 	return nil, false
 }
 
-// GetAllFunctions returns a snapshot of all functions in the registry
+// GetAllFunctions returns a snapshot of all functions in the registry sorted by creation time
 func (r *Registry) GetAllFunctions() []*Function {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -120,6 +120,15 @@ func (r *Registry) GetAllFunctions() []*Function {
 		// Return copies to prevent concurrent access issues
 		fnCopy := *fn
 		functions = append(functions, &fnCopy)
+	}
+
+	// Sort functions by creation time to ensure consistent order
+	for i := 0; i < len(functions)-1; i++ {
+		for j := i + 1; j < len(functions); j++ {
+			if functions[i].CreatedAt.After(functions[j].CreatedAt) {
+				functions[i], functions[j] = functions[j], functions[i]
+			}
+		}
 	}
 
 	return functions
