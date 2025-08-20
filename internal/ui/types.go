@@ -93,6 +93,10 @@ type Model struct {
 	FunctionConfirmName string
 	FunctionConfirmImage string
 	FunctionConfirmDesc string
+	
+	// Graph data for worker node
+	CPUHistory    []float64
+	MemoryHistory []float64
 }
 
 // MetricsMsg is sent by the sampler to the UI update loop.

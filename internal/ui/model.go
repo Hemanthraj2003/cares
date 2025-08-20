@@ -124,6 +124,22 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.CPU = fmt.Sprintf("%.2f%%", msg.CPU)
 			m.Mem = fmt.Sprintf("%.2f%%", msg.Mem)
+			
+			// Update graph history for worker mode
+			if m.Mode == ModeWorker {
+				// Add new data points
+				m.CPUHistory = append(m.CPUHistory, msg.CPU)
+				m.MemoryHistory = append(m.MemoryHistory, msg.Mem)
+				
+				// Keep only last 20 data points to prevent memory growth
+				maxHistory := 20
+				if len(m.CPUHistory) > maxHistory {
+					m.CPUHistory = m.CPUHistory[len(m.CPUHistory)-maxHistory:]
+				}
+				if len(m.MemoryHistory) > maxHistory {
+					m.MemoryHistory = m.MemoryHistory[len(m.MemoryHistory)-maxHistory:]
+				}
+			}
 		}
 		
 		// Continue ticking for all modes (orchestrator mode needs regular updates to show node changes)

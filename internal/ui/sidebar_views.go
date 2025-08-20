@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -109,18 +110,55 @@ func (m Model) getTwoPanelLayout() []string {
 	return strings.Split(layout, "\n")
 }
 
-// getSimpleWorkerContent returns simple worker node info (like Phase 01)
+// getSimpleWorkerContent returns worker node info with graphs
 func (m Model) getSimpleWorkerContent() []string {
+	// Calculate layout dimensions - prevent overflow
+	totalWidth := m.WinW - 15  // Account for main container padding
+	leftWidth := totalWidth * 50 / 100   // 50% for worker info
+	rightWidth := totalWidth * 50 / 100  // 50% for graphs
+	
+	availableHeight := m.WinH - 12 // Account for borders and padding
+	if availableHeight < 10 {
+		availableHeight = 10
+	}
+	
+	// Get worker info content
+	workerInfo := m.getWorkerInfoContent(leftWidth)
+	
+	// Get graphs content  
+	graphsContent := m.getWorkerGraphsContent(rightWidth, availableHeight)
+	
+	// Join horizontally with proper spacing
+	leftPanel := lipgloss.NewStyle().
+		Width(leftWidth).
+		Render(strings.Join(workerInfo, "\n"))
+	
+	rightPanel := lipgloss.NewStyle().
+		Width(rightWidth).
+		Render(graphsContent)
+	
+	// Join the two panels
+	layout := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		leftPanel,
+		rightPanel,
+	)
+	
+	return strings.Split(layout, "\n")
+}
+
+// getWorkerInfoContent returns the left panel worker information
+func (m Model) getWorkerInfoContent(width int) []string {
 	var lines []string
 	
 	// Enhanced styling to match orchestrator UI
 	headerStyle := lipgloss.NewStyle().
 		Bold(true).
-		Reverse(true).  // Inverted for headings like orchestrator
+		Reverse(true).
 		Padding(0, 1)
 	
 	descriptionStyle := lipgloss.NewStyle().
-		Faint(true).      // Grey/dull color for descriptions
+		Faint(true).
 		Italic(true)
 	
 	labelStyle := lipgloss.NewStyle().Bold(true)
@@ -129,31 +167,31 @@ func (m Model) getSimpleWorkerContent() []string {
 	lines = append(lines, 
 		headerStyle.Render("  WORKER NODE  "),
 		"",
-		descriptionStyle.Render("DISTRIBUTED COMPUTE WORKER - EXECUTING CONTAINERIZED FUNCTIONS"),
+		descriptionStyle.Render("DISTRIBUTED COMPUTE WORKER"),
 		"",
 	)
 	
 	// Connection status section
 	lines = append(lines,
-		headerStyle.Render("  CONNECTION STATUS  "),
+		headerStyle.Render("  CONNECTION  "),
 		"",
 	)
 	
 	if m.GrpcClient != nil && m.GrpcClient.IsConnected() {
 		lines = append(lines, 
-			fmt.Sprintf("%s %s", labelStyle.Render("ORCHESTRATOR:"), m.OrchestratorAddr),
+			fmt.Sprintf("%s %s", labelStyle.Render("ORCH:"), m.OrchestratorAddr),
 			fmt.Sprintf("%s %s", labelStyle.Render("STATUS:"), "ONLINE"),
 			fmt.Sprintf("%s %s", labelStyle.Render("HEARTBEAT:"), "ACTIVE"),
 			"",
-			descriptionStyle.Render("Connected to cluster orchestrator - ready for task assignments"),
+			descriptionStyle.Render("Connected to cluster orchestrator"),
 		)
 	} else {
 		lines = append(lines,
-			fmt.Sprintf("%s %s", labelStyle.Render("ORCHESTRATOR:"), m.OrchestratorAddr),
+			fmt.Sprintf("%s %s", labelStyle.Render("ORCH:"), m.OrchestratorAddr),
 			fmt.Sprintf("%s %s", labelStyle.Render("STATUS:"), "DISCONNECTED"),
 			fmt.Sprintf("%s %s", labelStyle.Render("HEARTBEAT:"), "INACTIVE"),
 			"",
-			descriptionStyle.Render("Worker node isolated - attempting reconnection to cluster"),
+			descriptionStyle.Render("Worker isolated - reconnecting"),
 		)
 	}
 	
@@ -161,21 +199,158 @@ func (m Model) getSimpleWorkerContent() []string {
 	
 	// System metrics section
 	lines = append(lines,
-		headerStyle.Render("  SYSTEM METRICS  "),
+		headerStyle.Render("  CURRENT METRICS  "),
 		"",
-		fmt.Sprintf("%s %s", labelStyle.Render("CPU USAGE:"), m.CPU),
-		fmt.Sprintf("%s %s", labelStyle.Render("MEMORY USAGE:"), m.Mem),
+		fmt.Sprintf("%s %s", labelStyle.Render("CPU:"), m.CPU),
+		fmt.Sprintf("%s %s", labelStyle.Render("MEMORY:"), m.Mem),
 		"",
 		fmt.Sprintf("%s %s", labelStyle.Render("NODE ID:"), "WORKER-001"),
 		fmt.Sprintf("%s %s", labelStyle.Render("UPTIME:"), "ACTIVE"),
 		"",
-		descriptionStyle.Render("Real-time resource monitoring for optimal task distribution"),
 		"",
+		descriptionStyle.Render("■ DOCKER CONTAINERIZATION"),
+		descriptionStyle.Render("■ AUTO LOAD BALANCING"),
+		descriptionStyle.Render("■ COST-AWARE ALLOCATION"),
 		"",
-		descriptionStyle.Render("■ DOCKER CONTAINERIZATION FOR SECURE EXECUTION"),
-		descriptionStyle.Render("■ AUTOMATIC LOAD BALANCING AND FAILOVER"),
-		descriptionStyle.Render("■ COST-AWARE RESOURCE ALLOCATION"),
+		headerStyle.Render("  REAL-TIME GRAPHS →  "),
 	)
+	
+	return lines
+}
+
+// getWorkerGraphsContent returns the right panel with CPU and Memory graphs
+func (m Model) getWorkerGraphsContent(width, height int) string {
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Reverse(true).
+		Padding(0, 1)
+	
+	tooltipStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Italic(true)
+	
+	var lines []string
+	
+	// Ensure we have some data to display
+	cpuData := m.CPUHistory
+	memData := m.MemoryHistory
+	
+	// If no history, create some sample data based on current values
+	if len(cpuData) == 0 {
+		cpuVal := 15.0 // default if no CPU data
+		if m.CPU != "" {
+			if parsed, err := strconv.ParseFloat(strings.TrimSuffix(m.CPU, "%"), 64); err == nil {
+				cpuVal = parsed
+			}
+		}
+		cpuData = []float64{cpuVal, cpuVal, cpuVal, cpuVal, cpuVal}
+	}
+	
+	if len(memData) == 0 {
+		memVal := 25.0 // default if no memory data  
+		if m.Mem != "" {
+			if parsed, err := strconv.ParseFloat(strings.TrimSuffix(m.Mem, "%"), 64); err == nil {
+				memVal = parsed
+			}
+		}
+		memData = []float64{memVal, memVal, memVal, memVal, memVal}
+	}
+	
+	// CPU Graph (Top half)
+	lines = append(lines,
+		headerStyle.Render("  CPU% vs TIME  "),
+		"",
+	)
+	
+	// Create simple ASCII bar chart for CPU
+	graphHeight := (height - 8) / 2 // Half height for each graph, minus headers
+	if graphHeight < 3 {
+		graphHeight = 3
+	}
+	
+	cpuLines := m.createSimpleGraph(cpuData, width-4, graphHeight, "CPU")
+	lines = append(lines, cpuLines...)
+	
+	lines = append(lines, 
+		"",
+		tooltipStyle.Render("→ Real-time CPU utilization"),
+		"",
+	)
+	
+	// Memory Graph (Bottom half)
+	lines = append(lines,
+		headerStyle.Render("  RAM% vs TIME  "),
+		"",
+	)
+	
+	memLines := m.createSimpleGraph(memData, width-4, graphHeight, "RAM")
+	lines = append(lines, memLines...)
+	
+	lines = append(lines, 
+		"",
+		tooltipStyle.Render("→ Real-time memory usage"),
+	)
+	
+	return strings.Join(lines, "\n")
+}
+
+// createSimpleGraph creates a simple ASCII bar chart scaled to 100%
+func (m Model) createSimpleGraph(data []float64, width, height int, label string) []string {
+	if len(data) == 0 {
+		return []string{"No data available"}
+	}
+	
+	var lines []string
+	
+	// Create a simple horizontal bar chart scaled to 100%
+	maxBars := width - 20 // Reserve space for labels
+	if maxBars < 10 {
+		maxBars = 10
+	}
+	
+	// Take last N data points to fit width
+	displayData := data
+	if len(data) > 10 {
+		displayData = data[len(data)-10:] // Show last 10 points
+	}
+	
+	// Create bars for each data point - scale to 100%
+	for i, val := range displayData {
+		// Scale bar length relative to 100% (not max value)
+		barLength := int((val / 100.0) * float64(maxBars))
+		if barLength < 0 {
+			barLength = 0
+		}
+		if barLength > maxBars {
+			barLength = maxBars // Cap at 100%
+		}
+		
+		bar := strings.Repeat("█", barLength)
+		if barLength < maxBars {
+			bar += strings.Repeat("░", maxBars-barLength)
+		}
+		
+		line := fmt.Sprintf("T-%02d │%s│ %.1f%%", len(displayData)-i, bar, val)
+		lines = append(lines, line)
+		
+		// Limit height to prevent overflow
+		if len(lines) >= height {
+			break
+		}
+	}
+	
+	// Add current value indicator
+	currentVal := displayData[len(displayData)-1]
+	currentBarLength := int((currentVal / 100.0) * float64(maxBars))
+	if currentBarLength < 0 {
+		currentBarLength = 0
+	}
+	if currentBarLength > maxBars {
+		currentBarLength = maxBars
+	}
+	
+	lines = append(lines, fmt.Sprintf("NOW  │%s│ %.1f%% ← Current", 
+		strings.Repeat("▓", currentBarLength), currentVal))
 	
 	return lines
 }
