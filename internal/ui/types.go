@@ -84,6 +84,10 @@ type Model struct {
 	FunctionTableFocused bool // True when user is navigating functions table
 	FunctionSelectedIndex int // Currently selected function in table
 	
+	// Node navigation state
+	NodeTableFocused bool // True when user is navigating nodes table
+	NodeSelectedIndex int // Currently selected node in table
+	
 	// Function confirmation modal state
 	ShowFunctionConfirmModal bool
 	FunctionConfirmName string

@@ -75,9 +75,9 @@ func (m Model) getTwoPanelLayout() []string {
 	var contentText string
 	switch m.SidebarSelected {
 	case 0: // Orchestrator - now first/default
-		contentText = m.getOrchestratorContent()
+		contentText = m.getOrchestratorContent(contentWidth)
 	case 1: // Logs
-		contentText = m.getLogsContent()
+		contentText = m.getLogsContent(contentWidth, availableHeight)
 	case 2: // Functions
 		contentText = m.getFunctionsContent(contentWidth)
 	case 3: // Add Function
@@ -108,18 +108,6 @@ func (m Model) getTwoPanelLayout() []string {
 	
 	return strings.Split(layout, "\n")
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 // getSimpleWorkerContent returns simple worker node info (like Phase 01)
 func (m Model) getSimpleWorkerContent() []string {
@@ -193,42 +181,52 @@ func (m Model) getSimpleWorkerContent() []string {
 }
 
 // getLogsContent returns logs content for the right panel
-func (m Model) getLogsContent() string {
+func (m Model) getLogsContent(contentWidth int, availableHeight int) string {
+	// Inverted heading style
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
-		Underline(true).
-		MarginBottom(2)
+		Reverse(true).
+		Padding(0, 1)
 	
+	// Updated neon colors
 	timestampStyle := lipgloss.NewStyle().
-		Faint(true)
+		Foreground(lipgloss.Color("245")) // Light grey for timestamps
 	
-	logStyle := lipgloss.NewStyle()
+	successStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("46")) // Bright neon green for success
 	
-	watermarkStyle := lipgloss.NewStyle().
-		Faint(true).
-		Italic(true)
+	infoStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("51")) // Bright neon cyan for info
+	
+	warningStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("226")) // Bright neon yellow for warnings
 	
 	var lines []string
 	
 	lines = append(lines,
-		titleStyle.Render("SYSTEM ACTIVITY LOGS"),
+		titleStyle.Render("  SYSTEM ACTIVITY LOGS  "),
 		"",
-		timestampStyle.Render("[14:32:07]") + " ORCHESTRATOR INITIALIZED SUCCESSFULLY",
-		timestampStyle.Render("[14:32:08]") + " GRPC SERVER LISTENING ON PORT :50051",
-		timestampStyle.Render("[14:32:09]") + " REST API SERVER RUNNING ON PORT :8080",
-		timestampStyle.Render("[14:32:10]") + " FUNCTION REGISTRY INITIALIZED",
-		"",
+	)
+	
+	// Collect log entries
+	var logEntries []string
+	
+	logEntries = append(logEntries,
+		timestampStyle.Render("[14:32:07]") + successStyle.Render(" ORCHESTRATOR INITIALIZED SUCCESSFULLY"),
+		timestampStyle.Render("[14:32:08]") + infoStyle.Render(" GRPC SERVER LISTENING ON PORT :50051"),
+		timestampStyle.Render("[14:32:09]") + infoStyle.Render(" REST API SERVER RUNNING ON PORT :8080"),
+		timestampStyle.Render("[14:32:10]") + successStyle.Render(" FUNCTION REGISTRY INITIALIZED"),
 	)
 	
 	if m.NodeRegistry != nil {
 		nodes := m.NodeRegistry.GetAllNodes()
 		if len(nodes) > 0 {
-			lines = append(lines, 
+			logEntries = append(logEntries, 
 				timestampStyle.Render("[14:32:11]") + 
-				logStyle.Render(fmt.Sprintf(" %d WORKER NODE(S) CONNECTED TO CLUSTER", len(nodes))))
+				successStyle.Render(fmt.Sprintf(" %d WORKER NODE(S) CONNECTED TO CLUSTER", len(nodes))))
 			
 			for i, node := range nodes {
-				if i >= 3 { // Limit to 3 nodes for readability
+				if i >= 2 { // Limit to 2 nodes to fit in 10 rows
 					break
 				}
 				
@@ -237,33 +235,61 @@ func (m Model) getLogsContent() string {
 					nodeID = nodeID[:9] + "..."
 				}
 				
-				lines = append(lines, 
+				logEntries = append(logEntries, 
 					timestampStyle.Render(fmt.Sprintf("[14:32:1%d]", 2+i)) + 
-					logStyle.Render(fmt.Sprintf(" %s: CPU %.1f%% | MEM %.1f%% | STATUS: ACTIVE", 
+					infoStyle.Render(fmt.Sprintf(" %s: CPU %.1f%% | MEM %.1f%% | STATUS: ACTIVE", 
 						nodeID, node.CPUUsage, node.MemoryUsage)))
 			}
 			
-			lines = append(lines, 
-				timestampStyle.Render("[14:32:15]") + " CLUSTER LOAD BALANCING ACTIVE")
+			logEntries = append(logEntries, 
+				timestampStyle.Render("[14:32:15]") + successStyle.Render(" CLUSTER LOAD BALANCING ACTIVE"))
 		} else {
-			lines = append(lines,
-				timestampStyle.Render("[14:32:11]") + " WAITING FOR WORKER NODES TO JOIN...")
+			logEntries = append(logEntries,
+				timestampStyle.Render("[14:32:11]") + warningStyle.Render(" WAITING FOR WORKER NODES TO JOIN..."))
 		}
 	}
 	
-	lines = append(lines, 
-		"",
-		timestampStyle.Render("[14:32:16]") + " SYSTEM OPERATIONAL - MONITORING ACTIVE",
-		"",
-		"",
-		watermarkStyle.Render("REAL-TIME LOGS | AUTO-ROTATION | EVENTS HIGHLIGHTED"),
-	)
+	logEntries = append(logEntries, 
+		timestampStyle.Render("[14:32:16]") + successStyle.Render(" SYSTEM OPERATIONAL - MONITORING ACTIVE"))
+	
+	// Calculate maximum rows based on available height
+	maxRows := availableHeight - 6 // Account for title, borders, and padding
+	if maxRows < 5 {
+		maxRows = 5 // Minimum rows
+	}
+	
+	// Show only the latest logs (reverse order if needed)
+	startIndex := 0
+	if len(logEntries) > maxRows {
+		startIndex = len(logEntries) - maxRows
+	}
+	
+	// Build log content for the bordered container
+	var logContent []string
+	for i := 0; i < maxRows; i++ {
+		entryIndex := startIndex + i
+		if entryIndex < len(logEntries) {
+			logContent = append(logContent, logEntries[entryIndex])
+		} else {
+			logContent = append(logContent, "") // Empty line
+		}
+	}
+	
+	// Create the terminal-style bordered log container using lipgloss
+	logContainer := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		Width(contentWidth - 4). // Use full available width minus outer padding
+		Height(maxRows).
+		Padding(0, 1).
+		Render(strings.Join(logContent, "\n"))
+	
+	lines = append(lines, logContainer)
 	
 	return strings.Join(lines, "\n")
 }
 
 // getOrchestratorContent returns orchestrator info for the right panel
-func (m Model) getOrchestratorContent() string {
+func (m Model) getOrchestratorContent(contentWidth int) string {
 	if m.NodeRegistry == nil {
 		return "Registry not initialized"
 	}
@@ -283,9 +309,7 @@ func (m Model) getOrchestratorContent() string {
 		Bold(true).
 		Padding(0, 1)
 	
-	watermarkStyle := lipgloss.NewStyle().
-		Faint(true).
-		Italic(true)
+	labelStyle := lipgloss.NewStyle().Bold(true)
 
 	// Custom grey color for tooltips - more subdued
 	tooltipStyle := lipgloss.NewStyle().
@@ -324,76 +348,67 @@ func (m Model) getOrchestratorContent() string {
 	
 	lines = append(lines, "")
 	
-	// Cluster metrics with inverted header
+	// Worker nodes table - always show 7 rows with navigation using full width
+	selectedRowStyle := lipgloss.NewStyle().Reverse(true)
+	
+	// Calculate table width to use full available space
+	tableWidth := contentWidth - 4 // Account for border padding
+	if tableWidth < 40 {
+		tableWidth = 40 // Minimum width
+	}
+	
+	// Calculate column widths dynamically (4 columns: Node ID, CPU, Memory, Status)
+	// Node ID: 30%, CPU: 25%, Memory: 25%, Status: 20%
+	nodeIdWidth := tableWidth * 30 / 100
+	cpuWidth := tableWidth * 25 / 100  
+	memoryWidth := tableWidth * 25 / 100
+	statusWidth := tableWidth - nodeIdWidth - cpuWidth - memoryWidth - 6 // Account for separators
+	
+	// Ensure minimum widths
+	if nodeIdWidth < 10 {
+		nodeIdWidth = 10
+	}
+	if cpuWidth < 8 {
+		cpuWidth = 8
+	}
+	if memoryWidth < 8 {
+		memoryWidth = 8
+	}
+	if statusWidth < 8 {
+		statusWidth = 8
+	}
+	
+	// Build dynamic table header
+	topBorder := "┌" + strings.Repeat("─", nodeIdWidth) + "┬" + strings.Repeat("─", cpuWidth) + "┬" + strings.Repeat("─", memoryWidth) + "┬" + strings.Repeat("─", statusWidth) + "┐"
+	headerRow := fmt.Sprintf("│ %-*s │ %-*s │ %-*s │ %-*s │", nodeIdWidth-2, "NODE ID", cpuWidth-2, "CPU", memoryWidth-2, "MEMORY", statusWidth-2, "STATUS")
+	midBorder := "├" + strings.Repeat("─", nodeIdWidth) + "┼" + strings.Repeat("─", cpuWidth) + "┼" + strings.Repeat("─", memoryWidth) + "┼" + strings.Repeat("─", statusWidth) + "┤"
+	
 	lines = append(lines,
-		headerStyle.Render("  CLUSTER METRICS  "),
+		labelStyle.Render("WORKER NODES - PRESS ENTER TO NAVIGATE"),
 		"",
+		topBorder,
+		headerRow,
+		midBorder,
 	)
 	
-	metricsLeft := []string{
-		fmt.Sprintf("%-15s %d", "ACTIVE NODES:", len(nodes)),
-		fmt.Sprintf("%-15s %d CORES", "TOTAL CAPACITY:", len(nodes)*4),
+	// Fixed number of table rows (7 rows)
+	maxRows := 7
+	selectedIndex := m.NodeSelectedIndex
+	if selectedIndex >= len(nodes) {
+		selectedIndex = 0
 	}
 	
-	metricsRight := []string{
-		fmt.Sprintf("%-15s ACTIVE", "LOAD BALANCER:"),
-		fmt.Sprintf("%-15s ENABLED", "FAILOVER MODE:"),
-	}
-	
-	// Add tooltips for cluster metrics
-	metricsTooltips := []string{
-		"→ Connected worker nodes ready for task execution",
-		"→ Automatic failover ensures high availability",
-	}
-	
-	for i := 0; i < len(metricsLeft) || i < len(metricsRight); i++ {
-		var left, right string
-		if i < len(metricsLeft) {
-			left = metricsLeft[i]
-		}
-		if i < len(metricsRight) {
-			right = metricsRight[i]
-		}
+	for i := 0; i < maxRows; i++ {
+		var row string
 		
-		leftPart := lipgloss.NewStyle().Width(35).Render(left)
-		line := leftPart + " " + right
-		lines = append(lines, line)
-		
-		// Add tooltip for this metric line
-		if i < len(metricsTooltips) {
-			lines = append(lines, tooltipStyle.Render("  "+metricsTooltips[i]))
-		}
-	}
-	
-	lines = append(lines, "")
-	
-	// Worker nodes table (removed the header since we removed it per request)
-	if len(nodes) == 0 {
-		lines = append(lines, 
-			"NO WORKER NODES CONNECTED",
-			tooltipStyle.Render("  → Start worker nodes to begin distributed processing"),
-			"",
-			fmt.Sprintf("JOIN ADDRESS: %s", highlightStyle.Render(fmt.Sprintf("%s:50051", localIP))),
-			tooltipStyle.Render("  → Use this address when starting new worker nodes"),
-		)
-	} else {
-		// Compact table that fits (removed header per request)
-		lines = append(lines, 
-			"┌───────────┬─────────┬─────────┬─────────┐",
-			"│ NODE ID   │ CPU     │ MEMORY  │ STATUS  │",
-			"├───────────┼─────────┼─────────┼─────────┤",
-		)
-		
-		// Limit nodes to prevent overflow
-		maxNodes := 3
-		if len(nodes) > maxNodes {
-			nodes = nodes[:maxNodes]
-		}
-		
-		for _, node := range nodes {
+		if i < len(nodes) {
+			// Display actual node data
+			node := nodes[i]
+			
+			// Truncate node ID to fit column width
 			nodeID := node.ID
-			if len(nodeID) > 9 {
-				nodeID = nodeID[:6] + "..."
+			if len(nodeID) > nodeIdWidth-3 {
+				nodeID = nodeID[:nodeIdWidth-6] + "..."
 			}
 			
 			status := "OFFLINE"
@@ -401,24 +416,37 @@ func (m Model) getOrchestratorContent() string {
 				status = "ONLINE"
 			}
 			
-			lines = append(lines, fmt.Sprintf("│ %-9s │ %5.1f%% │ %5.1f%% │ %-7s │",
-				nodeID, node.CPUUsage, node.MemoryUsage, status))
+			row = fmt.Sprintf("│ %-*s │ %-*s │ %-*s │ %-*s │",
+				nodeIdWidth-2, nodeID, 
+				cpuWidth-2, fmt.Sprintf("%.1f%%", node.CPUUsage), 
+				memoryWidth-2, fmt.Sprintf("%.1f%%", node.MemoryUsage), 
+				statusWidth-2, status)
+			
+			// Highlight selected row only when table is focused
+			if i == selectedIndex && m.NodeTableFocused {
+				row = selectedRowStyle.Render(row)
+			}
+		} else {
+			// Empty row with dynamic spacing
+			row = fmt.Sprintf("│%*s│%*s│%*s│%*s│", 
+				nodeIdWidth, "", cpuWidth, "", memoryWidth, "", statusWidth, "")
 		}
 		
-		lines = append(lines, 
-			"└───────────┴─────────┴─────────┴─────────┘",
-		)
-		
-		if len(m.NodeRegistry.GetAllNodes()) > maxNodes {
-			lines = append(lines, 
-				watermarkStyle.Render(fmt.Sprintf("... and %d more nodes", len(m.NodeRegistry.GetAllNodes())-maxNodes)))
-		}
-		
-		lines = append(lines, 
-			"",
-			"CLUSTER STATUS: OPERATIONAL",
-			tooltipStyle.Render("  → All systems running, ready for function execution"))
+		lines = append(lines, row)
 	}
+	
+	// Table footer with dynamic width
+	bottomBorder := "└" + strings.Repeat("─", nodeIdWidth) + "┴" + strings.Repeat("─", cpuWidth) + "┴" + strings.Repeat("─", memoryWidth) + "┴" + strings.Repeat("─", statusWidth) + "┘"
+	lines = append(lines, 
+		bottomBorder,
+		"",
+		tooltipStyle.Render(func() string {
+			if m.NodeTableFocused {
+				return fmt.Sprintf("→ Node %d of %d | ↑↓: Navigate | ESC: Exit table", selectedIndex+1, len(nodes))
+			}
+			return fmt.Sprintf("→ %d of %d nodes | ENTER: Navigate table", len(nodes), maxRows)
+		}()),
+	)
 	
 	return strings.Join(lines, "\n")
 }
@@ -694,5 +722,7 @@ func (m Model) getAddFunctionContent() string {
 	
 	return strings.Join(lines, "\n")
 }
+
+
 
 

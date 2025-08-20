@@ -201,6 +201,11 @@ func (m *Model) handleOrchestratorSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 			if m.FunctionSelectedIndex > 0 {
 				m.FunctionSelectedIndex--
 			}
+		} else if m.NodeTableFocused && m.SidebarSelected == 0 {
+			// Navigate nodes table
+			if m.NodeSelectedIndex > 0 {
+				m.NodeSelectedIndex--
+			}
 		} else if m.SidebarSelected > 0 {
 			m.SidebarSelected--
 		}
@@ -211,6 +216,14 @@ func (m *Model) handleOrchestratorSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 			if m.FunctionSelectedIndex < len(functions)-1 {
 				m.FunctionSelectedIndex++
 			}
+		} else if m.NodeTableFocused && m.SidebarSelected == 0 {
+			// Navigate nodes table
+			if m.NodeRegistry != nil {
+				nodes := m.NodeRegistry.GetAllNodes()
+				if m.NodeSelectedIndex < len(nodes)-1 {
+					m.NodeSelectedIndex++
+				}
+			}
 		} else {
 			maxItems := 4 // logs, orchestrator, functions, add-function
 			if m.SidebarSelected < maxItems-1 {
@@ -220,7 +233,8 @@ func (m *Model) handleOrchestratorSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 	case "enter", " ":
 		switch m.SidebarSelected {
 		case 0: // Orchestrator - now first/default
-			// Just selection change, content will update automatically
+			// Enter key focuses into the nodes table for navigation
+			m.NodeTableFocused = true
 		case 1: // Logs
 			// Just selection change, content will update automatically
 		case 2: // Functions
@@ -238,6 +252,9 @@ func (m *Model) handleOrchestratorSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 		if m.FunctionTableFocused {
 			// Exit function table navigation
 			m.FunctionTableFocused = false
+		} else if m.NodeTableFocused {
+			// Exit node table navigation
+			m.NodeTableFocused = false
 		} else {
 			// Return to mode selection menu
 			// Cleanup orchestrator mode
@@ -254,6 +271,8 @@ func (m *Model) handleOrchestratorSidebarKeys(msg tea.KeyMsg) (tea.Model, tea.Cm
 			m.ShowFunctionForm = false
 			m.FunctionTableFocused = false
 			m.FunctionSelectedIndex = 0
+			m.NodeTableFocused = false
+			m.NodeSelectedIndex = 0
 		}
 	}
 	
