@@ -1,0 +1,260 @@
+================================================================================
+                    CARES PROJECT TECHNICAL REPORT
+         Cost-Aware Resource Allocation and Execution Scheduler
+================================================================================
+
+PROJECT OVERVIEW
+================================================================================
+
+Project Name: CARES (Cost-Aware Resource Allocation and Execution Scheduler)
+Language: Go 1.24.5
+Architecture: Distributed Master-Worker System
+Primary Interface: Terminal User Interface (TUI) with gRPC backend
+Development Status: Phase 2+ Implementation (Multi-node cluster operational)
+
+EXECUTIVE SUMMARY
+================================================================================
+
+CARES is a sophisticated distributed computing platform designed to intelligently
+orchestrate containerized function execution across a dynamic cluster of nodes.
+The system implements a cost-aware scheduling algorithm that optimizes resource
+allocation based on real-time CPU/memory metrics and load balancing strategies.
+
+The project demonstrates advanced concepts in:
+- Distributed systems architecture
+- Real-time resource monitoring
+- Container orchestration via Docker
+- gRPC-based inter-node communication
+- Interactive terminal-based user interfaces
+- Load balancing and scheduling algorithms
+
+PROJECT GOALS AND OBJECTIVES
+================================================================================
+
+Primary Goals:
+1. Demonstrate functional distributed system capabilities
+2. Create dynamic cluster management with node discovery
+3. Implement cost-aware resource allocation for function execution
+4. Provide intuitive CLI/TUI for cluster management and monitoring
+5. Enable easy deployment via Docker containerization
+
+Core Value Propositions:
+- COST-AWARE SCHEDULING: Intelligent workload distribution based on resource metrics
+- REAL-TIME MONITORING: Live visualization of cluster health and performance
+- CONTAINER-NATIVE: Full Docker integration for function execution
+- FAULT-TOLERANT: Graceful handling of node failures and disconnections
+- NETWORK-AGNOSTIC: Configurable deployment across diverse network topologies
+
+SYSTEM ARCHITECTURE
+================================================================================
+
+High-Level Design:
+CARES follows a master-worker architecture with centralized orchestration:
+
+┌─────────────────┐    gRPC     ┌─────────────────┐
+│   ORCHESTRATOR  │◄──────────► │   WORKER NODE   │
+│   (Master)      │             │                 │
+│  - Node Registry│             │ - Function Runner│
+│  - Scheduler    │             │ - Resource Reporter│
+│  - API Gateway  │             │ - Agent Service │
+│  - TUI Dashboard│             │ - TUI Monitor   │
+└─────────────────┘             └─────────────────┘
+         ▲                               ▲
+         │ REST API                      │ gRPC Heartbeat
+         ▼                               ▼
+┌─────────────────┐             ┌─────────────────┐
+│   USER CLIENT   │             │   MORE WORKERS  │
+│                 │             │                 │
+└─────────────────┘             └─────────────────┘
+
+CORE COMPONENTS
+================================================================================
+
+1. ORCHESTRATOR COMPONENTS:
+   ├── Cluster Discovery Service - Node registration and lifecycle management
+   ├── Function Registry - Docker image mapping and function metadata
+   ├── Scheduler/Load Balancer - Cost-aware node selection algorithm
+   ├── API Gateway - HTTP/REST endpoints for function upload/execution
+   ├── Node Monitor - Real-time metrics collection and health checks
+   └── TUI Dashboard - Interactive cluster visualization and control
+
+2. WORKER NODE COMPONENTS:
+   ├── Agent Service - Bidirectional gRPC communication with orchestrator
+   ├── Function Runner - Docker container execution and output capture
+   ├── Resource Reporter - Real-time CPU/memory usage monitoring
+   └── TUI Monitor - Local resource visualization and status display
+
+3. COMMUNICATION PROTOCOLS:
+   ├── gRPC (Internal) - Orchestrator ↔ Worker communication, heartbeats
+   ├── REST API (External) - User ↔ Orchestrator function management
+   └── WebSocket Streams - Real-time metrics and log streaming
+
+TECHNICAL IMPLEMENTATION DETAILS
+================================================================================
+
+Core Technologies:
+- Go 1.24.5 with modern concurrency patterns
+- gRPC + Protocol Buffers for inter-service communication
+- Bubble Tea framework for interactive TUI development
+- Docker Engine integration for container orchestration
+- gopsutil library for system metrics collection
+- Lipgloss for advanced terminal styling and layouts
+
+Key Packages and Modules:
+
+internal/
+├── api/          - HTTP server and REST API endpoints
+├── cluster/      - gRPC server/client and cluster protocol implementation
+├── executor/     - Docker container execution and management
+├── functions/    - Function registry and metadata management
+├── logging/      - Structured logging with configurable outputs
+├── metrics/      - System resource monitoring (CPU/RAM)
+├── registry/     - Node registry and cluster state management
+├── scheduler/    - Cost-aware workload scheduling algorithms
+└── ui/           - Bubble Tea TUI implementation with real-time updates
+
+Advanced Features Implemented:
+- Real-time ASCII graph visualization of CPU/RAM metrics over time
+- Dynamic terminal resizing and responsive layout management
+- Bidirectional gRPC streaming for live metrics updates
+- Graceful node disconnection handling and cluster healing
+- Docker daemon auto-detection and container lifecycle management
+- Interactive navigation with keyboard-driven menu systems
+- Live log streaming with color-coded severity levels
+
+FUNCTIONAL CAPABILITIES
+================================================================================
+
+1. CLUSTER MANAGEMENT:
+   ✓ Create new cluster (Orchestrator mode initialization)
+   ✓ Join existing cluster (Worker node discovery and registration)
+   ✓ Maintain active node registry with health monitoring
+   ✓ Detect and handle node disconnections gracefully
+   ✓ Display real-time cluster topology in TUI dashboard
+
+2. FUNCTION MANAGEMENT:
+   ✓ Upload functions as Docker image references
+   ✓ Store function registry with metadata and endpoints
+   ✓ Generate unique API endpoints for function invocation
+   ✓ Display registered functions in interactive TUI
+
+3. EXECUTION AND LOAD BALANCING:
+   ✓ Expose REST API for function invocation
+   ✓ Implement cost-aware scheduling algorithm
+   ✓ Forward requests to optimal worker nodes
+   ✓ Execute Docker containers and capture output
+   ✓ Return results through orchestrator to client
+
+4. MONITORING AND STATISTICS:
+   ✓ Collect real-time CPU/memory metrics from all nodes
+   ✓ Display live progress bars and graphs in TUI
+   ✓ Stream execution logs and system events
+   ✓ Visualize cluster health and performance trends
+
+DEVELOPMENT PHASES COMPLETED
+================================================================================
+
+Phase 1 (Standalone Node):
+- ✅ Function runner with Docker integration
+- ✅ Resource reporter with gopsutil metrics
+- ✅ Basic TUI with real-time local monitoring
+
+Phase 2 (Cluster Formation):
+- ✅ gRPC server/client implementation
+- ✅ Node registry and discovery protocol
+- ✅ Dual-mode binary (Orchestrator/Worker)
+- ✅ Enhanced TUI with cluster visualization
+
+Phase 3 (Function Registration):
+- ✅ REST API server for function management
+- ✅ Function registry and metadata storage
+- ✅ Interactive TUI forms for function upload
+- ✅ Live function list display
+
+Phase 4+ (Advanced Features):
+- ✅ Cost-aware scheduling implementation
+- ✅ End-to-end function execution workflow
+- ✅ Real-time graph visualization
+- ✅ Advanced TUI layouts and navigation
+
+DEPLOYMENT MODEL
+================================================================================
+
+Docker Containerization:
+The entire CARES application is packaged as a single Docker image that can
+be deployed across multiple containers to simulate a distributed environment.
+
+Deployment Process:
+1. Build Docker image containing the CARES binary
+2. Start orchestrator container - initializes cluster with unique ID
+3. Start worker containers - connect to orchestrator using cluster ID
+4. TUI guides users through initial setup and configuration
+5. System becomes operational for function upload and execution
+
+Network Configuration:
+- gRPC communication on port :50051 (internal cluster traffic)
+- REST API server on port :8080 (external user requests)
+- Configurable network addresses for cross-node communication
+- Support for air-gapped deployments with manual configuration
+
+CURRENT STATUS AND ACHIEVEMENTS
+================================================================================
+
+Implemented Features:
+✓ Full cluster formation and management
+✓ Real-time metrics monitoring with graphical visualization
+✓ Docker-based function execution engine
+✓ Interactive TUI with advanced navigation and layouts
+✓ gRPC-based communication with streaming capabilities
+✓ REST API for external function management
+✓ Cost-aware scheduling algorithm
+✓ Graceful error handling and node failure recovery
+✓ Comprehensive logging system with structured output
+✓ ASCII graph visualization of historical metrics
+✓ Responsive terminal layouts with dynamic sizing
+
+Recent Enhancements:
+- Implemented real-time CPU/RAM graphs in worker node view
+- Added horizontal bar chart visualization scaled to 100%
+- Enhanced TUI layouts with proper overflow prevention
+- Improved metrics collection and history tracking
+- Advanced ASCII art graphs with time-series data
+- Dynamic terminal resizing and responsive design
+
+Technical Debt and Future Improvements:
+- Advanced executor options (resource limits, network isolation)
+- Prometheus metrics exposition for external monitoring
+- Enhanced security with TLS and authentication
+- Comprehensive test suite with integration testing
+- CI/CD pipeline configuration
+- Performance optimization for large cluster deployments
+
+CONCLUSION
+================================================================================
+
+CARES represents a sophisticated implementation of distributed systems concepts,
+demonstrating practical solutions for container orchestration, real-time monitoring,
+and intelligent workload scheduling. The project successfully combines modern Go
+development practices with advanced TUI design to create an intuitive yet powerful
+distributed computing platform.
+
+The system showcases expertise in:
+- Distributed systems architecture and communication protocols
+- Real-time data visualization and user interface design
+- Container orchestration and resource management
+- Network programming and service discovery
+- Performance monitoring and metrics collection
+- Interactive terminal application development
+
+The codebase is well-structured, modular, and follows Go best practices, making
+it suitable for both educational purposes and potential production deployment
+with additional hardening and security features.
+
+Total Lines of Code: ~2,500+ (estimated)
+Active Development Period: Multi-phase implementation
+Testing Environment: Docker-based multi-container simulation
+Performance: Optimized for real-time responsiveness and low latency
+
+================================================================================
+                        End of CARES Project Report
+================================================================================
